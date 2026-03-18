@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<description xmlns="http://openoffice.org/extensions/update/2006"
+             xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <!-- LibreOffice 品牌更新信息 -->
+    <identifier value="org.libreoffice.ofd.extension"/>
+
+    <version value="1.0.0" />
+
+    <update-download>
+        <src xlink:href="https://github.com/fanta0625/libreoffice-ofd-extension/releases/latest/download/libreoffice-ofd-extension.oxt"/>
+    </update-download>
+
+    <!-- 更新日志 -->
+    <release-notes>
+        <src lang="en-US" xlink:href="https://github.com/fanta0625/libreoffice-ofd-extension/releases/latest"/>
+        <src lang="zh-CN" xlink:href="https://github.com/fanta0625/libreoffice-ofd-extension/releases/latest"/>
+    </release-notes>
+
+</description>

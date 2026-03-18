@@ -17,8 +17,8 @@
     </icon>
 
     <publisher>
-        <name xlink:href="https://github.com/loongson/libreoffice-ofd-extension" lang="en-US">LibreOffice OFD Extension Contributors</name>
-        <name xlink:href="https://github.com/loongson/libreoffice-ofd-extension" lang="zh-CN">LibreOffice OFD 扩展贡献者</name>
+        <name xlink:href="https://github.com/fanta0625/libreoffice-ofd-extension" lang="en-US">LibreOffice OFD Extension Contributors</name>
+        <name xlink:href="https://github.com/fanta0625/libreoffice-ofd-extension" lang="zh-CN">LibreOffice OFD 扩展贡献者</name>
     </publisher>
 
     <dependencies>
@@ -36,11 +36,6 @@
         <src lang="zh-CN" xlink:href="description/CHANGELOG.zh-CN.md"/>
     </release-notes>
 
-    <!-- 可选: 更新信息 -->
-    <!--
-    <update-information>
-        <src xlink:href="https://github.com/loongson/libreoffice-ofd-uno-extension/releases/latest/download/update.xml"/>
-    </update-information>
-    -->
+@extension.updateInfo@
 
 </description>

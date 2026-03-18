@@ -18,23 +18,28 @@
         <libreoffice.version>24.8.4</libreoffice.version>
         <ofdrw.version>2.3.8</ofdrw.version>
 
-        <!-- Extension build properties - default values -->
+        <!-- Extension build properties - default values (LibreOffice brand) -->
         <extension.name>libreoffice-ofd-extension</extension.name>
         <extension.displayName>LibreOffice OFD Extension</extension.displayName>
         <extension.identifier>org.libreoffice.ofd.extension</extension.identifier>
         <extension.officeName>LibreOffice</extension.officeName>
+        <extension.updateFile>update-libreoffice.xml</extension.updateFile>
+        <!-- 是否启用自动更新：LibreOffice 独立分发需要更新，LoongOffice 集成不需要 -->
+        <extension.updateEnabled>true</extension.updateEnabled>
     </properties>
 
     <!-- Profile for building branded extension packages -->
     <profiles>
-        <!-- Branded version: mvn clean package -DskipTests -P branded -Dbrand=loongoffice -->
+        <!-- LoongOffice branded version: mvn clean package -DskipTests -P loongoffice -->
+        <!-- LoongOffice 随主程序集成发布，不需要独立更新机制 -->
         <profile>
-            <id>branded</id>
+            <id>loongoffice</id>
             <properties>
-                <extension.name>${brand}-ofd-extension</extension.name>
+                <extension.name>loongoffice-ofd-extension</extension.name>
                 <extension.displayName>LoongOffice OFD Extension</extension.displayName>
                 <extension.identifier>org.loongoffice.ofd.extension</extension.identifier>
                 <extension.officeName>LoongOffice</extension.officeName>
+                <extension.updateEnabled>false</extension.updateEnabled>
             </properties>
         </profile>
 
@@ -210,12 +215,18 @@
                                 <copy file="src/main/resources/Filter.xcu"
                                       todir="${project.build.directory}/oxt-tmp"/>
 
+                                <!-- 根据 updateEnabled 决定是否包含 update-information -->
+                                <condition property="extension.update.info" value="    &lt;!-- 自动更新信息 --&gt;&#10;    &lt;update-information&gt;&#10;        &lt;src xlink:href=&quot;https://github.com/fanta0625/libreoffice-ofd-extension/releases/latest/download/${extension.updateFile}&quot;/&gt;&#10;    &lt;/update-information&gt;" else="">
+                                    <equals arg1="${extension.updateEnabled}" arg2="true"/>
+                                </condition>
+
                                 <!-- Copy description.xml to root directory with filtering -->
-                                <copy file="src/main/resources/description/description.xml"
-                                      todir="${project.build.directory}/oxt-tmp">
+                                <copy file="src/main/resources/description/description-template.xml"
+                                      tofile="${project.build.directory}/oxt-tmp/description.xml">
                                     <filterset>
                                         <filter token="extension.identifier" value="${extension.identifier}"/>
                                         <filter token="extension.displayName" value="${extension.displayName}"/>
+                                        <filter token="extension.updateInfo" value="${extension.update.info}"/>
                                     </filterset>
                                 </copy>
 

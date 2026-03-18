@@ -1,0 +1,119 @@
+name: Build and Release Dual-Branded Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Determine version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Update version in files
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        # Update pom.xml version
+        sed -i "s/<version>.*<\/version>/<version>$VERSION<\/version>/" pom.xml
+        # Update description template version
+        sed -i "s/<version value=\".*\"/<version value=\"$VERSION\"/" src/main/resources/description/description-template.xml
+        # Update LibreOffice update.xml version (LoongOffice 不需要独立更新)
+        sed -i "s/<version value=\".*\"/<version value=\"$VERSION\"/" update-libreoffice.xml
+    
+    # Build LibreOffice brand (default)
+    - name: Build LibreOffice Extension
+      run: |
+        mvn clean package -DskipTests
+        cp target/libreoffice-ofd-extension.oxt libreoffice-ofd-extension.oxt
+    
+    # Build LoongOffice brand
+    - name: Build LoongOffice Extension
+      run: |
+        mvn clean package -DskipTests -P loongoffice
+        cp target/loongoffice-ofd-extension.oxt loongoffice-ofd-extension.oxt
+    
+    # Create Release (only on tag push or manual trigger)
+    - name: Create Release
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
+        name: Release ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## LibreOffice OFD Extension ${{ steps.version.outputs.VERSION }}
+          
+          此版本包含两个品牌的扩展：
+          
+          ### 📦 下载
+          
+          | 品牌 | 文件名 | 适用场景 |
+          |------|--------|----------|
+          | LibreOffice | `libreoffice-ofd-extension.oxt` | 标准 LibreOffice 用户 |
+          | LoongOffice | `loongoffice-ofd-extension.oxt` | 龙芯 LoongOffice 用户 |
+          
+          ### 🔄 自动更新
+          
+          - **LibreOffice 版本**：支持自动更新，会检查 `update-libreoffice.xml`
+          - **LoongOffice 版本**：随 LoongOffice 主程序集成发布，更新随主程序一起推送
+          
+          ### 📋 更新日志
+          
+          详见 [CHANGELOG.md](CHANGELOG.md)
+        files: |
+          libreoffice-ofd-extension.oxt
+          loongoffice-ofd-extension.oxt
+          update-libreoffice.xml
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 单独的更新文件发布任务（用于更新 update.xml 而不创建新版本）
+  update-xml:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.version == 'update-only'
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Update latest release assets
+      run: |
+        # 获取最新 release 的 tag
+        LATEST_TAG=$(gh release view --json tagName -q .tagName)
+        
+        # 上传/更新 LibreOffice update.xml 文件到最新 release
+        # LoongOffice 不需要独立更新文件（随主程序发布）
+        gh release upload "$LATEST_TAG" update-libreoffice.xml --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
