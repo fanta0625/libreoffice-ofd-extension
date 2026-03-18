@@ -28,6 +28,16 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
+    - name: Build and install forked ofdrw
+      run: |
+        echo "Cloning and building forked ofdrw with bug fixes..."
+        cd /tmp
+        git clone --depth 1 --branch fix/svg-chinese-font-encoding https://github.com/fanta0625/ofdrw.git
+        cd ofdrw
+        # Install to local Maven repository (skip tests for faster build)
+        mvn install -DskipTests -q
+        echo "ofdrw fork installed successfully"
+    
     - name: Determine version
       id: version
       run: |

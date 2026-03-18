@@ -28,6 +28,14 @@
         <extension.updateEnabled>true</extension.updateEnabled>
     </properties>
 
+    <!-- 添加 JitPack 仓库，用于拉取 fork 的 ofdrw -->
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <!-- Profile for building branded extension packages -->
     <profiles>
         <!-- LoongOffice branded version: mvn clean package -DskipTests -P loongoffice -->
@@ -112,6 +120,8 @@
         </dependency>
 
         <!-- OFDRW Converter - supports SVG, Image, HTML, Text, PDF export -->
+        <!-- 注意：此依赖需要先在本地构建安装 fork 版本（修复了中文编码 bug） -->
+        <!-- GitHub Actions 工作流会先 clone fanta0625/ofdrw 并 install -->
         <dependency>
             <groupId>org.ofdrw</groupId>
             <artifactId>ofdrw-converter</artifactId>
