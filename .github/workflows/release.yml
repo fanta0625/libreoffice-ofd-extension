@@ -52,8 +52,8 @@ jobs:
     - name: Update version in files
       run: |
         VERSION=${{ steps.version.outputs.VERSION }}
-        # Update pom.xml version
-        sed -i "s/<version>.*<\/version>/<version>$VERSION<\/version>/" pom.xml
+        # Update pom.xml project version using Maven (won't touch plugin versions)
+        mvn versions:set -DnewVersion=$VERSION -DgenerateBackupPoms=false
         # Update description template version
         sed -i "s/<version value=\".*\"/<version value=\"$VERSION\"/" src/main/resources/description/description-template.xml
         # Update LibreOffice update.xml version (LoongOffice 不需要独立更新)
