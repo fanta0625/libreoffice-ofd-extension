@@ -1,0 +1,1 @@
+An extension that enables @extension.officeName@ Draw to open OFD (Open Fixed-layout Document) files.

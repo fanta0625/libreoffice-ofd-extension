@@ -1,0 +1,896 @@
+Simple Component in Java
+This section shows how to write Java components. The examples in this chapter are in the samples folder that was provided with the programmer's manual.
+
+A Java component is a library of Java classes (a jar) containing objects that implement arbitrary UNO services. For a service implementation in Java, implement the necessary UNO core interfaces and the interfaces needed for your purpose. These could be existing interfaces or interfaces defined by using UNOIDL.
+
+Besides these service implementations, Java components need two methods to instantiate the services they implement in a UNO environment: one to get single factories for each service implementation in the jar, and another one to write registration information into a registry database. These methods are called static component operations in the following:
+
+The method that provides single factories for the service implementations in a component is __getServiceFactory():
+
+public static XSingleServiceFactory __getServiceFactory(String implName,
+                                    XMultiServiceFactory multiFactory,
+                                    XRegistryKey regKey)
+In theory, a client obtains a single factory from a component by calling __getServiceFactory() on the component implementation directly. This is rarely done because in most cases service manager is used to get an instance of the service implementation. The service manager uses __getServiceFactory() at the component to get a factory for the requested service from the component, then asks this factory to create an instance of the one object the factory supports.
+
+To find a requested service implementation, the service manager searches its registry database for the location of the component jar that contains this implementation. For this purpose, the component must have been registered beforehand. UNO components are able to write the necessary information on their own through a function that performs the registration and which can be called by the registration tool regcomp. The function has this signature:
+
+public static boolean __writeRegistryServiceInfo(XRegistryKey regKey)
+These two methods work together to make the implementations in a component available to a service manager. The method __writeRegistryServiceInfo() tells the service manager where to find an implementation while __getServiceFactory() enables the service manager to instantiate a service implementation, once found.
+
+The necessary steps to write a component are:
+
+Define service implementation classes.
+Implement UNO core interfaces.
+Implement your own interfaces.
+Provide static component operations to make your component available to a service manager.
+Class Definition with Helper Class
+XInterface, XTypeProvider and XWeak
+The LibreOffice Java UNO environment contains Java helper classes that implement the majority of the core interfaces that are implemented by UNO components. There are two helper classes:
+
+The helper com.sun.star.lib.uno.helper.WeakBase is the minimal base class and implements XInterface, XTypeProvider and Xweak.
+The helper com.sun.star.lib.uno.helper.ComponentBase that extends WeakBase and implements XComponent.
+The com.sun.star.lang.XServiceInfo is the only interface that should be implemented, but it is not part of the helpers.
+
+Use the naming conventions described in section XServiceInfo for the service implementation. Following the rules, a service org.openoffice.test.ImageShrink should be implemented in org.openoffice.comp.test.ImageShrink.
+
+A possible class definition that uses WeakBase could look like this:
+
+package org.openoffice.comp.test;
+
+public class ImageShrink extends com.sun.star.lib.uno.helper.WeakBase
+      implements com.sun.star.lang.XServiceInfo,
+        org.openoffice.test.XImageShrinkFilter {
+
+    com.sun.star.uno.XComponentContext xComponentContext = null;
+
+    /** Creates a new instance of ImageShrink */
+    public ImageShrink(com.sun.star.uno.XComponentContext XComponentContext xContext) {
+        this.xComponentContext = xContext;
+    }
+    ...
+
+}
+XServiceInfo
+If the implementation only supports one service, use the following code to implement XServiceInfo:
+
+...
+
+//XServiceInfo implementation
+
+// hold the service name in a private static member variable of the class
+protected static final String __serviceName = "org.openoffice.test.ImageShrink";
+
+public String getImplementationName( ) {
+    return getClass().getName();
+}
+
+public boolean supportsService(String serviceName) {
+    return serviceName.equals( __serviceName);
+}
+
+public String[] getSupportedServiceNames( ) {
+    return new String[] { __serviceName };
+}
+
+...
+An implementation of more than one service in one UNO object is more complex. It has to return all supported service names in getSupportedServiceNames(), furthermore it must check all supported service names in supportsService(). Note that several services packaged in one component file are not discussed here, but objects supporting more than one service. Refer to A Component implementing three UNO objects for the implementation of srv3_4.
+
+Implementing Your Own Interfaces
+The functionality of a component is accessible only by its interfaces. When writing a component, choose one of the available API interfaces or define an interface. UNO types are used as method arguments to other UNO objects. Java does not support unsigned integer types, so their use is discouraged. In the chapter Using UNOIDL to Specify New Components, the org.openoffice.test.XImageShrinkFilter interface specification was written and an interface class file was created. Its implementation is straightforward, you create a class that implements your interfaces:
+
+package org.openoffice.comp.test;
+
+public class ImageShrink extends com.sun.star.lib.uno.helper.WeakBase
+      implements com.sun.star.lang.XServiceInfo,
+                    org.openoffice.test.XImageShrinkFilter {
+
+    ...
+
+    String destDir = "";
+    String sourceDir = "";
+    boolean cancel = false;
+    com.sun.star.awt.Size dimension = new com.sun.star.awt.Size();
+
+    // XImageShrink implementation (a sub-interface of XImageShrinkFilter)
+
+    public void cancel() {
+        cancel = true;
+    }
+
+    public boolean filter(com.sun.star.beans.PropertyValue[] propertyValue) {
+        // while cancel = false,
+        // scale images found in sourceDir according to dimension and
+        // write them to destDir, using the image file format given in
+        // []propertyValue
+        // (implementation omitted)
+        cancel = false;
+        return true;
+    }
+
+    // XIMageShrink implementation
+
+    public String getDestinationDirectory() {
+        return destDir;
+    }
+
+    public com.sun.star.awt.Size getDimension() {
+        return dimension;
+    }
+
+    public String getSourceDirectory() {
+        return sourceDir;
+    }
+
+    public void setDestinationDirectory(String str) {
+        destDir = str;
+    }
+
+    public void setDimension(com.sun.star.awt.Size size) {
+        dimension = size;
+    }
+
+    public void setSourceDirectory(String str) {
+        sourceDir = str;
+    }
+
+    ...
+}
+For the component to run, the new interface class file must be accessible to the Java Virtual Machine. Unlike stand-alone Java applications, it is not sufficient to set the CLASSPATH environment variable. Instead, the class path is passed to the VM when it is created. Prior to OpenOffice.org 1.1.0, one could modify the class path by editing the SystemClasspath entry of the java(.ini|rc) which was located in the folder <officepath>\user\config. Another way was to use the Options dialog. To navigate to the class path settings, one had to expand the LibreOffice node in the tree on the left-hand side and chose Security. On the right-hand side, there was a field called User Classpath.
+
+As of OpenOffice.org 1.1.0 the component, class files, and type library are packed into an extension, which is then registered by the pkgchk executable. And as of OpenOffice.org 2.0.0, the unopkg tool is used to do this. The jar files are then automatically added to the class path.
+
+	
+Note:
+It is also important that the binary type library of the new interfaces are provided together with the component, otherwise the component is not accessible from LibreOffice Basic. Basic uses the UNO core reflection service to get type information at runtime. The core reflection is based on the binary type library.
+
+Providing a Single Factory Using Helper Method
+The component must be able to create single factories for each service implementation it contains and return them in the static component operation __getServiceFactory(). The LibreOffice Java UNO environment provides a Java class com.sun.star.comp.loader.FactoryHelper that creates a default implementation of a single factory through its method getServiceFactory(). The following example could be written:
+
+package org.openoffice.comp.test;
+
+import com.sun.star.lang.XSingleServiceFactory;
+import com.sun.star.lang.XMultiServiceFactory;
+import com.sun.star.registry.XRegistryKey;
+import com.sun.star.comp.loader.FactoryHelper;
+
+public class ImageShrink ... {
+
+  ...
+
+    // static __getServiceFactory() implementation
+    // static member __serviceName was introduced above for XServiceInfo implementation
+    public static XSingleServiceFactory __getServiceFactory(String implName,
+            XMultiServiceFactory multiFactory,
+            com.sun.star.registry.XRegistryKey regKey) {
+
+        com.sun.star.lang.XSingleServiceFactory xSingleServiceFactory = null;
+        if (implName.equals( ImageShrink.class.getName()) )
+            xSingleServiceFactory = FactoryHelper.getServiceFactory(ImageShrink.class,
+            ImageShrink.__serviceName, multiFactory, regKey);
+
+        return xSingleServiceFactory;
+    }
+
+  ...
+
+}
+The FactoryHelper is contained in the jurt jar file. The getServiceFactory() method takes as a first argument a Class object. When createInstance() is called on the default factory, it creates an instance of that Class using newInstance() on it and retrieves the implementation name through getName(). The second argument is the service name. The multiFactory and regKey arguments were received in __getServiceFactory() and are passed to the FactoryHelper.
+
+	
+Note:
+In this case, the implementation name, which the default factory finds through Class.getName() is org.openoffice.comp.test.ImageShrink and the service name is org.openoffice.test.ImageShrink. The implementation name and the service name are used for the separate XServiceInfo implementation within the default factory. Not only do you support the XServiceInfo interface in your service implementation, but the single factory must implement this interface as well.
+
+The default factory created by the FactoryHelper expects a public constructor in the implementation class of the service and calls it when it instantiates the service implementation. The constructor can be a default constructor, or it can take a com.sun.star.uno.XComponentContext or a com.sun.star.lang.XMultiServiceFactory as an argument. Refer to Create Instance with Arguments for other arguments that are possible.
+
+Java components are housed in jar files. When a component has been registered, the registry contains the name of the jar file, so that the service manager can find it. However, because a jar file can contain several class files, the service manager must be told which one contains the __getServiceFactory() method. That information has to be put into the jar's Manifest file, for example:
+
+ RegistrationClassName: org.openoffice.comp.test.ImageShrink
+Write Registration Info Using Helper Method
+UNO components have to be registered with the registry database of a service manager. In an office installation, this is the file types.rdb (up through OpenOffice.org 1.1.0, applicat.rdb) for all predefined services. A service manager can use this database to find the implementations for a service. For instance, if an instance of your component is created using the following call.
+
+Object imageShrink =
+xRemoteServiceManager.createInstance("org.openoffice.test.ImageShrink");
+Using the given service or implementation name, the service manager looks up the location of the corresponding jar file in the registry and instantiates the component.
+
+	
+Note:
+If you want to use the service manager of the Java UNO runtime, com.sun.star.comp.servicemanager.ServiceManager (jurt.jar), to instantiate your service implementation, then you would have to create the service manager and add the factory for "org.openoffice.test.ImageShrink" programmatically, because the Java service manager does not use the registry.
+
+Alternatively, you can use com.sun.star.comp.helper.RegistryServiceFactory from juh.jar which is registry-based. Its drawback is that it delegates to a C++ implementation of the service manager through the java-bridge.
+
+During the registration, a component writes the necessary information into the registry. The process to write the information is triggered externally when a client calls the __writeRegistryServiceInfo() method at the component.
+
+public static boolean __writeRegistryServiceInfo(XRegistryKey regKey)
+The caller passes an com.sun.star.registry.XRegistryKey interface that is used by the method to write the registry entries. Again, the FactoryHelper class offers a way to implement the method:
+
+...
+
+// static __writeRegistryServiceInfo implementation
+public static boolean __writeRegistryServiceInfo(XRegistryKey regKey) {
+
+    return FactoryHelper.writeRegistryServiceInfo( ImageShrink.class.getName(),
+    __serviceName, regKey);
+}
+The writeRegistryServiceInfo method takes three arguments:
+
+implementation name
+service name
+XRegistryKey
+Use tools such as regcomp to register a component. This tool takes the path to the jar file containing the component as an argument. Since the jar can contain several classes, the class that implements the __writeRegistryServiceInfo() method must be pointed out by means of the manifest. Again, the RegistrationClassName entry determines the correct class. For example:
+
+ RegistrationClassName: org.openoffice.comp.test.ImageShrink
+The above entry is also necessary to locate the class that provides __getServiceFactory(), therefore the functions __writeRegistryServiceInfo() and __getServiceFactory() have to be in the same class.
+
+Implementing without Helpers
+XInterface
+As soon as the component implements any UNO interface, com.sun.star.uno.XInterface is included automatically. The Java interface definition generated by javamaker for com.sun.star.uno.XInterface only contains a TypeInfo member used by Java UNO internally to store certain UNO type information:
+
+// source file com/sun/star/uno/XInterface.java corresponding to the class generated by
+
+package com.sun.star.uno;
+
+public interface XInterface
+{
+    // static Member
+    public static final com.sun.star.lib.uno.typeinfo.TypeInfo UNOTYPEINFO[] = null;
+}
+Note that XInterface does not have any methods, in contrast to its IDL description. That means, if implements com.sun.star.uno.XInterface is added to a class definition, there is nothing to implement.
+
+The method queryInterface() is unnecessary in the implementation of a UNO object, because the Java UNO runtime environment obtains interface references without support from the UNO objects themselves. Within Java, the method UnoRuntime.queryInterface() is used to obtain interfaces instead of calling queryInterface(), and the Java UNO language binding hands out interfaces for UNO objects to other processes on its own as well.
+
+The methods acquire() and release() are used for reference counting and control the lifetime of an object, because the Java garbage collector does this, there is no reference counting in Java components.
+
+XTypeProvider
+Helper classes with default com.sun.star.lang.XTypeProvider implementations are still under development for Java. Meanwhile, every Java UNO object implementation can implement the XTypeProvider interface as shown in the following code. In your implementation, adjust getTypes():
+
+...
+
+// XTypeProvider implementation
+
+// maintain a static implementation id for all instances of ImageShrink
+// initialized by the first call to getImplementationId()
+protected static byte[] _implementationId;
+
+public com.sun.star.uno.Type[] getTypes() {
+
+    // instantiate Type instances for each interface you support and place them in a Type[] array
+    // (this object supports XServiceInfo, XTypeProvider, and XImageShrinkFilter)
+    return new com.sun.star.uno.Type[] {
+        new com.sun.star.uno.Type(com.sun.star.lang.XServiceInfo.class),
+        new com.sun.star.uno.Type(com.sun.star.lang.XTypeProvider.class),
+        new com.sun.star.uno.Type(org.openoffice.test.XImageShrinkFilter.class) };
+}
+
+synchronized public byte[] getImplementationId() {
+    if (_implementationId == null) {
+        _implementationId= new byte[16];
+        int hash = hashCode(); // hashCode of this object
+        _implementationId[0] = (byte)(hash & 0xff);
+        _implementationId[1] = (byte)((hash >>> 8) & 0xff);
+        _implementationId[2] = (byte)((hash >>> 16) & 0xff);
+        _implementationId[3] = (byte)((hash >>>24) & 0xff);
+    }
+    return _implementationId;
+}
+
+...
+The suggested implementation of the getImplementationId() method is not optimal, it uses the hashCode() of the first instance that initializes the static field. The future UNO helper class will improve this.
+
+XComponent
+XComponent is an optional interface that is useful when other objects hold references to the component. The notification mechanism of XComponent enables listener objects to learn when the component stops to provide its services, so that the objects drop their references to the component. This enables the component to delete itself when its reference count drops to zero. From section Core Interfaces to Implement, there must be three things done when dispose() is called at an XComponent:
+
+Inform registered XEventListeners that the object is being disposed of by calling their method disposing().
+Release all references the object holds, including all XEvenListener objects.
+On further calls to the component, throw a com.sun.star.lang.DisposedException in case the required task can not be fulfilled anymore, because the component was disposed.
+In Java, the object cannot be deleted, but the garbage collector will do this. It is sufficient to release all references that are currently being held to break the cyclic reference, and to call disposing() on all com.sun.star.lang.XEventListeners.
+
+The registration and removal of listener interfaces is a standard procedure in Java. Some IDEs even create the necessary methods automatically. The following example could be written:
+
+...
+
+//XComponent implementation
+
+// hold a list of eventListeners
+private java.util.ArrayList eventListeners = new java.util.ArrayList();
+
+public void dispose {
+    java.util.ArrayList listeners;
+    synchronized (this) {
+        listeners = eventListeners;
+        eventListeners = null;
+    }
+    for (java.util.Iterator i = listeners.iterator(); i.hasNext();) {
+        fireDisposing((XEventListener) i.next());
+    }
+    releaseReferences();
+}
+
+public void addEventListener(XEventListener listener) {
+    bool fire = false;
+    synchronized (this) {
+        if (eventListeners == null) {
+            fire = true;
+        } else {
+            eventListeners.add(listener);
+        }
+    }
+    if (fire) {
+        fireDisposing(listener);
+    }
+}
+
+public synchronized void removeEventListener(XEventListener listener) {
+    if (eventListeners != null) {
+        eventListeners.remove(listener);
+    }
+}
+
+private void fireDisposing(XEventListener listener) {
+    com.sun.star.uno.EventObject event = new com.sun.star.uno.EventObject(this);
+    try {
+        listener.disposing(event);
+    } catch (com.sun.star.uno.DisposedException e) {
+        // it is not an error if some listener is disposed simultaneously
+    }
+}
+
+private void releaseReferences() {
+    xComponentContext = null;
+    // ...
+}
+Storing the Service Manager for Further Use
+A component usually runs in the office process. There is no need to create an interprocess channel explicitly. A component does not have to create a service manager, because it is provided to the single factory of an implementation by the service manager during a call to createInstance() or createInstanceWithContext(). The single factory receives an XComponentContext or an XMultiServiceFactory, and passes it to the corresponding constructor of the service implementation. From the component context, the implementation gets the service manager using getServiceManager() at the com.sun.star.uno.XComponentContext interface.
+
+Create Instance with Arguments
+A factory can create an instance of components and pass additional arguments. To do that, a client calls the createInstanceWithArguments() function of the com.sun.star.lang.XSingleServiceFactory interface or the createInstanceWithArgumentsAndContext() of the com.sun.star.lang.XSingleComponentFactory interface.
+
+//javamaker generated interface
+//XSingleServiceFactory interface
+public Object createInstanceWithArguments(Object[] aArguments)
+                            throws com.sun.star.uno.Exception;
+
+//XSingleComponentFactory
+public Object createInstanceWithArgumentsAndContext(Object[] Arguments,
+                            com.sun.star.uno.XComponentContext Context)
+                        throws com.sun.star.uno.Exception;
+Both functions take an array of values as an argument. A component implements the com.sun.star.lang.XInitialization interface to receive the values. A factory passes the array on to the single method initialize() supported by XInitialization.
+
+public void initialize(Object[] aArguments) throws com.sun.star.uno.Exception;
+Alternatively, a component may also receive these arguments in its constructor. If a factory is written, determine exactly which arguments are provided by the factory when it instantiates the component. When using the FactoryHelper, implement the constructors with the following arguments:
+
+First Argument	Second Argument	Third Argument
+com.sun.star.uno.XComponentContext	com.sun.star.registry.XRegistryKey	Object[]
+com.sun.star.uno.XComponentContext	com.sun.star.registry.XRegistryKey	
+com.sun.star.uno.XComponentContext	Object[]	
+com.sun.star.uno.XComponentContext		
+Object[]		
+The FactoryHelper automatically passes the array of arguments it received from the createInstanceWithArguments[AndContext]() call to the appropriate constructor. Therefore, it is not always necessary to implement XInitialization to use arguments.
+
+Possible Structures for Java Components
+The implementation of a component depends on the needs of the implementer. The following examples show some possible ways to assemble a component. There can be one implemented object or several implemented objects per component file.
+
+One Implementation per Component File
+There are additional options if implementing one service per component file:
+
+Use a flat structure with the static component operations added to the service implementation class directly.
+Reserve the class with the implementation name for the static component operation and use an inner class to implement the service.
+Implementation Class with Component Operations
+An implementation class contains the static component operations. The following sample implements an interface com.sun.star.test.XSomething in an implementation class JavaComp.TestComponent:
+
+// UNOIDL: interface example specification
+module com { module sun { module star { module test {
+
+interface XSomething: com::sun::star::uno::XInterface
+{
+    string methodOne([in]string val);
+};
+}; }; }; };
+A component that implements only one service supporting XSomething can be assembled in one class as follows:
+
+package JavaComp;
+
+...
+
+public class TestComponent implements XSomething, XTypeProvider, XServiceInfo {
+
+    public static final String __serviceName="com.sun.star.test.JavaTestComponent";
+
+    public static XSingleServiceFactory __getServiceFactory(String implName,
+                              XMultiServiceFactory multiFactory, XRegistryKey regKey) {
+    XSingleServiceFactory xSingleServiceFactory = null;
+
+    if (implName.equals( TestComponent.class.getName()) )
+        xSingleServiceFactory = FactoryHelper.getServiceFactory( TestComponent.class,
+                              TestComponent.__serviceName, multiFactory, regKey);
+        return xSingleServiceFactory;
+    }
+
+    public static boolean __writeRegistryServiceInfo(XRegistryKey regKey) {
+        return FactoryHelper.writeRegistryServiceInfo( TestComponent.class.getName(),
+                    TestComponent.__serviceName, regKey);
+    }
+
+    // XSomething
+    string methodOne(String val) {
+        return val;
+    }
+    //XTypeProvider
+    public com.sun.star.uno.Type[] getTypes( ) {
+        ...
+    }
+    // XTypeProvider
+    public byte[] getImplementationId( ) {
+        ...
+    }
+    //XServiceInfo
+    public String getImplementationName( ) {
+        ...
+    }
+    // XServiceInfo
+    public boolean supportsService( /*IN*/String serviceName ) {
+        ...
+    }
+    //XServiceInfo
+    public String[] getSupportedServiceNames( ) {
+        ...
+    }
+}
+The class implements the XSomething interface. The IDL description and documentation provides information about its functionality. The class also contains the functions for factory creation and registration, therefore the manifest entry must read as follows:
+
+ RegistrationClassName: JavaComp.TestComponent
+Implementation Class with Component Operations and Inner Implementation Class
+To implement the component as inner class of the one that provides the service factory through __getServiceFactory(), it must be a static inner class, otherwise the factory provided by the FactoryHelper cannot create the component. An example for an inner implementation class is located in the sample com.sun.star.comp.demo.DemoComponent.java provided with the SDK. The implementation of __getServiceFactory() and __writeRegistryServiceInfo() is omitted here, because they act the same as in the implementation class with component operations above.
+
+package com.sun.star.comp.demo;
+
+public class DemoComponent {
+
+    ...
+    // static inner class implements service com.sun.star.demo.DemoComponent
+    static public class _Implementation implements XTypeProvider,
+                    XServiceInfo, XInitialization, XWindowListener,
+                    XActionListener, XTopWindowListener {
+
+    static private final String __serviceName = "com.sun.star.demo.DemoComponent";
+    private XMultiServiceFactory _xMultiServiceFactory;
+
+    // Constructor
+    public _Implementation(XMultiServiceFactory xMultiServiceFactory) {
+    }
+}
+
+// static method to get a single factory creating the given service from the factory helper
+public static XSingleServiceFactory __getServiceFactory(String implName,
+                                        XMultiServiceFactory multiFactory,
+                                        XRegistryKey regKey) {
+            ...
+    }
+
+    // static method to write the service information into the given registry key
+    public static boolean __writeRegistryServiceInfo(XRegistryKey regKey) {
+        ...
+    }
+
+}
+The manifest entry for this implementation structure again has to point to the class with the static component operations:
+
+ RegistrationClassName: com.sun.star.comp.demo.DemoComponent
+Multiple Implementations per Component File
+To assemble several service implementations in one component file, implement each service in its own class and add a separate class containing the static component operations. The following code sample features two services: TestComponentA and TestComponentB implementing the interfaces XSomethingA and XSomethingB with a separate static class TestServiceProvider containing the component operations.
+
+The following are the UNOIDL specifications for XSomethingA and XSomethingB:
+
+module com { module sun { module star { module test {
+interface XSomethingA: com::sun::star::uno::XInterface
+{
+    string methodOne([in]string value);
+};
+}; }; }; };
+
+module com { module sun { module star { module test {
+interface XSomethingB: com::sun::star::uno::XInterface
+{
+    string methodTwo([in]string value);
+};
+}; }; }; };
+TestComponentA implements XSomethingA:
+
+package JavaComp;
+
+public class TestComponentA implements XTypeProvider, XServiceInfo, XSomethingA {
+    static final String __serviceName= "JavaTestComponentA";
+
+    static byte[] _implementationId;
+
+    public TestComponentA() {
+    }
+
+    // XSomethingA
+    public String methodOne(String val) {
+        return val;
+    }
+
+    //XTypeProvider
+    public com.sun.star.uno.Type[] getTypes( ) {
+        Type[] retValue= new Type[3];
+        retValue[0]= new Type( XServiceInfo.class);
+        retValue[1]= new Type( XTypeProvider.class);
+        retValue[2]= new Type( XSomethingA.class);
+        return retValue;
+    }
+
+    //XTypeProvider
+    synchronized public byte[] getImplementationId( ) {
+        if (_implementationId == null) {
+            _implementationId= new byte[16];
+            int hash = hashCode();
+            _implementationId[0] = (byte)(hash & 0xff);
+            _implementationId[1] = (byte)((hash >>> 8) & 0xff);
+            _implementationId[2] = (byte)((hash >>> 16) & 0xff);
+            _implementationId[3] = (byte)((hash >>>24) & 0xff);
+        }
+        return _implementationId;
+    }
+
+    //XServiceInfo
+    public String getImplementationName( ) {
+        return getClass().getName();
+    }
+    // XServiceInfo
+    public boolean supportsService( /*IN*/String serviceName ) {
+        return serviceName.equals( __serviceName);
+    }
+
+    //XServiceInfo
+    public String[] getSupportedServiceNames( ) {
+        String[] retValue= new String[0];
+        retValue[0]= __serviceName;
+        return retValue;
+    }
+}
+TestComponentB implements XSomethingB. Note that it receives the component context and initialization arguments in its constructor.
+
+package JavaComp;
+
+public class TestComponentB implements XTypeProvider, XServiceInfo, XSomethingB {
+    static final String __serviceName= "JavaTestComponentB";
+
+    static byte[] _implementationId;
+    private XComponentContext context;
+    private Object[] args;
+
+    public TestComponentB(XComponentContext context, Object[] args) {
+        this.context= context;
+        this.args= args;
+    }
+
+    // XSomethingB
+    public String methodTwo(String val) {
+        if (args.length > 0 && args[0] instanceof String )
+        return (String) args[0];
+        return val;
+    }
+
+    //XTypeProvider
+    public com.sun.star.uno.Type[] getTypes( ) {
+        Type[] retValue= new Type[3];
+        retValue[0]= new Type( XServiceInfo.class);
+        retValue[1]= new Type( XTypeProvider.class);
+        retValue[2]= new Type( XSomethingB.class);
+        return retValue;
+    }
+
+    //XTypeProvider
+    synchronized public byte[] getImplementationId( ) {
+        if (_implementationId == null) {
+            _implementationId= new byte[16];
+            int hash = hashCode();
+            _implementationId[0] = (byte)(hash & 0xff);
+            _implementationId[1] = (byte)((hash >>> 8) & 0xff);
+            _implementationId[2] = (byte)((hash >>> 16) & 0xff);
+            _implementationId[3] = (byte)((hash >>>24) & 0xff);
+        }
+        return _implementationId;
+    }
+
+    //XServiceInfo
+    public String getImplementationName( ) {
+        return getClass().getName();
+    }
+
+    // XServiceInfo
+    public boolean supportsService( /*IN*/String serviceName ) {
+        return serviceName.equals( __serviceName);
+    }
+
+    //XServiceInfo
+    public String[] getSupportedServiceNames( ) {
+        String[] retValue= new String[0];
+        retValue[0]= __serviceName;
+        return retValue;
+    }
+}
+TestServiceProvider implements __getServiceFactory() and __writeRegistryServiceInfo():
+
+package JavaComp;
+...
+public class TestServiceProvider
+{
+    public static XSingleServiceFactory __getServiceFactory(String implName,
+                                              XMultiServiceFactory multiFactory,
+                                              XRegistryKey regKey) {
+        XSingleServiceFactory xSingleServiceFactory = null;
+
+        if (implName.equals( TestComponentA.class.getName()) )
+            xSingleServiceFactory = FactoryHelper.getServiceFactory( TestComponentA.class,
+                                        TestComponentA.__serviceName, multiFactory, regKey);
+        else if (implName.equals(TestComponentB.class.getName()))
+            xSingleServiceFactory= FactoryHelper.getServiceFactory( TestComponentB.class,
+                                        TestComponentB.__serviceName, multiFactory, regKey);
+        return xSingleServiceFactory;
+    }
+
+    public static boolean __writeRegistryServiceInfo(XRegistryKey regKey) {
+        boolean bregA= FactoryHelper.writeRegistryServiceInfo( TestComponentA.class.getName(),
+                                        TestComponentA.__serviceName, regKey);
+        boolean bregB= FactoryHelper.writeRegistryServiceInfo( TestComponentB.class.getName(),
+                                        TestComponentB.__serviceName, regKey);
+        return bregA && bregB;
+    }
+}
+The corresponding manifest entry must point to the static class with the component operations, in this case JavaComp.TestServiceProvider:
+
+ RegistrationClassName: JavaComp.TestServiceProvider
+Additional UNO Types
+To make the Java UNO runtime more robust and efficient, each component is loaded with its own class loader, with one UnoClassLoader at the root that takes care of loading all Java classes representing UNO types in such a way that they are available across the whole Java UNO runtime environment.
+
+If a Java UNO component requires additional UNO types, it must use a UNO-Type-Path manifest entry to specify the location of the UNO types. The UNO-Type-Path is similar to the Class-Path manifest entry and can contain URLs of jars and directories that contain the Java classes that represent additional UNO types. The UnoClassLoader evaluates the UNO-Type-Path manifest entry to ensure that the additional UNO types are available to the Java UNO environment. The UNO-Type-Path can have one of the following formats.
+
+Current jar does not contain UNO types:
+UNO-Type-Path: 
+(Note the final space character.)
+Current jar contains UNO types:
+UNO-Type-Path: <>
+Current jar brings other jars that contain UNO types:
+UNO-Type-Path: any/other/jar.jar yet/another/jar.jar
+Current jar and other jars that the current jar uses contain UNO types:
+UNO-Type-Path: any/other/jar.jar <> yet/another/jar.jar
+	
+Note:
+Note: For backwards compatibility, if you do not include the UNO-Type-Path manifest entry at all, the UNO runtime assumes that the current jar does contain UNO types.
+
+Running and Debugging Java Components
+In order to run a Java component within an office, it needs to be registered first. During the process of registration, the location of the component, its service name and implementation name, are written into a registry database – the services.rdb.
+
+	
+Warning:
+As of OpenOffice.org 1.1.0 the registration database (applicat.rdb) was split into the services.rdb and the types.rdb. As the names suggest, the services.rdb contains information about services (location, names, ect), whereas the types.rdb holds type descriptions (interfaces, enumerations, etc.)
+
+
+Formerly the regcomp tool was used for registering components. However, it was superseded by pkgchk which came with OpenOffice.org 1.1.0 and later by unopkg which came with OpenOffice.org 2.0.0. For more details about unopkg refer to chapter Extensions.
+
+By using regcomp you have the option of registering components so that the information is kept in a separate database (other then the services.rdb). This might come in handy if you do not want to clutter up the services.rdb while developing components. Then, however, the office needs to be told to use that .rdb, which is done by modifying the uno(.ini|rc).
+
+If the component uses new types, then they must be made available to the office by merging the type information into the services.rdb. Again, you have the option of using a different database as long as the uno.(ini|rc) is modified accordingly. This step can be omitted if unopkg is being used.
+
+The following is a step by step description of the registration process using regcomp:
+
+Note, if errors are encountered, refer to the troubleshooting section at the end of this chapter.
+
+Register Component File
+This step creates a registry file that contains the location of the component file and all the necessary type information. To register, place a few files to the proper locations:
+
+Copy the regcomp tool from the SDK distribution to <OfficePath>/program.
+Copy the component jar to <OfficePath>/program/classes.
+Copy the .rdb file containing the new types created to <OfficePath>/program. If new types were not defined, dismiss this step. In this case, regcomp automatically creates a new rdb file with registration information.
+On the command prompt, change to <OfficePath>/program, then run regcomp with the following options. Line breaks were applied to improve readability, but the command must be entered in a single line:
+
+ $ regcomp -register -r <your_registry>.rdb  -br services.rdb
+                     -br types.rdb
+                     -l com.sun.star.loader.Java
+                     -c file:///<OfficePath>/program/classes/<your_component>.jar
+For the org.openoffice.test.ImageShrink service whose type description was merged into thumbs.rdb, which is implemented in thumbs.jar, the corresponding command would be:
+
+ $ regcomp -register -r thumbs.rdb
+                     -br services.rdb
+                     -br types.rdb
+                     -l com.sun.star.loader.Java
+                     -c file:///i:/StarOffice6.0/program/classes/thumbs.jar
+Instead of regcomp, there is also a Java tool to register components, however, it can only write to the same registry it reads from. It cannot be used to create a separate registry database. For details, see the section Deployment Options for Components.
+
+Make Registration Available to OpenOffice.org
+LibreOffice must be told to use the registry. Close all LibreOffice parts, including the Quickstarter that runs in the Windows task bar. Edit the file uno(.ini|rc) in <OfficePath>/program as follows:
+
+ [Bootstrap]
+ UNO_TYPES=$SYSBINDIR/types.rdb $SYSBINDIR/<your_registry>.rdb
+ UNO_SERVICES=$SYSBINDIR/services.rdb $SYSBINDIR/<your_registry>.rdb
+For details about the syntax of uno(.ini|rc) and alternative registration procedures, refer to the section Deployment Options for Components. If LibreOffice is restarted, the component should be available.
+
+Test the Registration
+A short LibreOffice Basic program indicates if the program runs went smoothly, by selecting Tools – Macro and entering a new macro name on the left, such as TestImageShrink and click New to create a new procedure. In the procedure, enter the appropriate code of the component. The test routine for ImageShrink would be:
+
+Sub TestImageShrink
+    oTestComp = createUnoService("org.openoffice.test.ImageShrink")
+    MsgBox oTestComp.dbg_methods
+    MsgBox oTestComp.dbg_properties
+    MsgBox oTestComp.dbg_supportedInterfaces
+end sub
+The result should be three dialogs showing the methods, properties and interfaces supported by the implementation. Note that the interface attributes do not appear as get/set methods, but as properties in Basic. If the dialogs do not show what is expected, refer to the section Troubleshooting.
+
+Debugging
+To increase turnaround cycles and source level debugging, configure the IDE to use GNU makefiles for code generation and prepare LibreOffice for Java debugging.
+
+Support for GNU make
+A NetBeans extension, available on makefile.netbeans.org, that adds basic support for GNU makefiles. When it is enabled, edit the makefile in the IDE and use the makefile to build. To install and enable this module, select Tools – Setup Wizard and click Next to go to the Module installation page. Find the module Makefiles and change the corresponding entry to True in the Enabled column. Finish using the setup wizard. If the module is not available in the installation, use Tools – Update Center to get the module from www.netbeans.org. A new entry, Makefile Support, appears in the online help when Help – Contents is selected. Makefile Support provides further configuration options. The settings Run a Makefile and Test a Makefile can be found in Tools – Options – Uncategorized – Compiler Types and – Execution Types.
+
+Put the makefile into the project source folder that was mounted when the project was created. To build the project using the makefile, highlight the makefile in the Explorer and press F11.
+
+Documentation for GNU make command-line options and syntax are available at www.gnu.org. The sample Thumbs in the samples folder along with this manual contains a makefile that with a few adjustments is useful for Java components.
+
+Component Debugging
+You can attach any IDE to the JVM in LibreOffice in order to debug it.
+
+Configure the JVM used by LibreOffice to listen for debugger connections via the options dialog: expand the LibreOffice node in the tree on the left-hand side and chose Advanced. On the right-hand side, push the Parameters button to open a dialog. In this dialog, enter the following debug options as two separate entries.
+
+-Xdebug
+-Xrunjdwp:transport=dt_socket,server=y,address=8000,suspend=n
+Note that the parameters have to be entered the same way as they would be provided on the command line when starting the Java executable. That is, retain the leading '-' and spaces, if necessary.
+
+The last line causes the JVM to listen for a debugger on port 8000. The JVM starts listening as soon as it runs and does not wait until a debugger connects to the JVM. Launch the office and instantiate the Java component, so that the office invokes the JVM in listening mode.
+
+If you instead want the JVM to wait for you to connect the debugger before executing code, set suspend=y instead:
+
+-Xdebug
+-Xrunjdwp:transport=dt_socket,server=y,address=8000,suspend=y
+Once a Java component is instantiated, the JVM keeps listening even if the component goes out of scope. Open the appropriate source file in your IDE and set breakpoints as needed. Then connect to the (remote) JVM with your IDE using port 8000. You find IDE specific instructions below.
+
+NetBeans
+Choose Debug - Attach, select Java Platform Debugger Architecture (JPDA) as debugger type and SocketAttach (Attaches by socket to other VMs) as the connector. The Host should be localhost and the Port must be 8000. Click OK to connect the Java Debugger to the JVM the office has started previously step.
+
+Once the debugger connects to the running JVM, NetBeans switches to debug mode, the output windows shows a message that a connection on port 8000 is established and threads are visible, as if the debugging was local. If necessary, start your component once again. As soon as the component reaches a breakpoint in the source code, the source editor window opens with the breakpoint highlighted by a green arrow.
+
+The Java Environment in LibreOffice
+When UNO components written in Java are to be used within the office suite, the office suite has to be configured to use the appropriate JRE. For information on the supported JREs see Documentation/FAQ/Installation/Which version of Java do I need?.
+
+OpenOffice.org 2.x
+In OpenOffice.org 2.x there is no java(.ini|rc) anymore. All basic Java settings are set in the options dialog: tree node LibreOffice->Java. The Parameters dialog can be used to specify the debug options and other arguments.
+
+For applets there are still a few settings on the security panel (tree node LibreOffice->Security).
+
+Versions prior to OpenOffice.org 2.x
+Prior to OpenOffice.org 2.x, this configuration happened during the installation, when the Java setup was performed. Then, a user could choose a Java Runtime Environment or choose to install a JRE. After installing the office, the selected JRE could still be changed with the jvmsetup program, which was located in the program folder. The data for running the Java Virtual Machine was stored in the java(.ini|rc) file and other configuration files.
+
+	
+Note:
+The java(.ini|rc) actually is an implementation detail. Unfortunately, it needs to be modified under some rare circumstances, for example for debugging purposes. You must not rely on the existence of the file nor should you make assumptions about its contents.
+
+In an office with a lower version than 2.x, the java(.ini|rc) is located in the <officepath>\user\config directory. A client can use that file to pass additional properties to the Java Virtual Machine, which are then available as system properties. For example, to pass the property MyAge, invoke Java like this:
+
+ java -DMyAge=30 RunClass
+If you want to have that system property accessible by your Java component you can put that property into java(ini|rc) within the [Java] section. For example:
+
+[Java]
+Home=file:///C:/Program%20Files/Java/j2re1.4.2
+
+VMType=JRE
+Version=1.4.2
+RuntimeLib=file:///C:/Program%20Files/Java/j2re1.4.2/bin/client/jvm.dll
+SystemClasspath=d:\645m15\program\classes\classes.jar;; ...
+Java=1
+JavaScript=1
+Applets=1
+MyAge=27
+To debug a Java component, it is necessary to start the JVM with additional parameters. The parameters can be put in the java.ini the same way as they would appear on the command-line. For example, add those lines to the [Java] section:
+
+ -Xdebug
+ -Xrunjdwp:transport=dt_socket,server=y,address=8000
+More about debugging can be found in the JDK documentation and in the LibreOffice Software Development Kit.
+
+Java components are also affected by the following configuration settings. They can be changed in the Tools - Options dialog. In the dialog, expand the OpenOffice node on the left-hand side and choose Security. This brings up a new pane on the right-hand side that allows Java specific settings:
+
+Java Setting	Description
+Enable	If checked, Java is used with the office. This affects Java components, as well as applets.
+Security checks	If checked, the security manager restricts resource access of applets.
+Net access	Determines where an applet can connect.
+ClassPath	Additional jar files and directories where the JVM should search for classes. Also known as user classpath.
+Applets	If checked, applets are executed.
+Troubleshooting
+If the component encounters problems, review the following checklist to check if the component is configured correctly.
+
+Check Registry Keys
+To check if the registry database is correctly set up, run regview against the three keys that make up a registration in the /UCR, /SERVICES and /IMPLEMENTATIONS branch of a registry database. The following examples show how to read the appropriate keys and how a proper configuration should look. In our example, service ImageShrink, and the key /UCR/org/openoffice/test/XImageShrink contain the type information specified in UNOIDL (the exact output from regview might differ between versions of LibreOffice):
+
+# dump XImageShrink type information
+
+$ regview thumbs.rdb /UCR/org/openoffice/test/XImageShrink
+
+Registry "file:///X:/office60eng/program/thumbs.rdb":
+
+/UCR/org/openoffice/test/XImageShrink
+  Value: Type = RG_VALUETYPE_BINARY
+        Size = 364
+        Data = minor version: 0
+                major version: 1
+                type: 'interface'
+                uik: { 0x00000000-0x0000-0x0000-0x00000000-0x00000000 }
+                name: 'org/openoffice/test/XImageShrink'
+                super name: 'com/sun/star/uno/XInterface'
+                Doku: ""
+                IDL source file: "X:\SO\sdk\examples\java\Thumbs\org\openoffice\test\XImageShrink.idl"
+                number of fields: 3
+                field #0:
+                  name='SourceDirectory'
+                  type='string'
+                  access=READWRITE
+                  Doku: ""
+                  IDL source file: ""
+                field #1:
+                  name='DestinationDirectory'
+                  type='string'
+                  access=READWRITE
+                  Doku: ""
+                  IDL source file: ""
+                field #2:
+                  name='Dimension'
+                  type='com/sun/star/awt/Size'
+                  access=READWRITE
+                  Doku: ""
+                  IDL source file: ""
+                  number of methods: 0
+                  number of references: 0
+The /SERVICES/org.openoffice.test.ImageShrink key must point to the implementation name org.openoffice.comp.test.ImageShrink that was chosen for this service:
+
+# dump service name registration
+
+$ regview thumbs.rdb /SERVICES/org.openoffice.test.ImageShrink
+
+Registry "file:///X:/office60eng/program/thumbs.rdb":
+
+/SERVICES/org.openoffice.test.ImageShrink
+  Value: Type = RG_VALUETYPE_STRINGLIST
+        Size = 45
+        Len  = 1
+        Data = 0 = "org.openoffice.comp.test.ImageShrink"
+Finally, the /IMPLEMENTATIONS/org.openoffice.comp.test.ImageShrink key must contain the loader and the location of the component jar:
+
+# dump implementation name registration
+
+$ regview thumbs.rdb /IMPLEMENTATIONS/org.openoffice.comp.test.ImageShrink
+
+Registry "file:///X:/office60eng/program/thumbs.rdb":
+
+/IMPLEMENTATIONS/org.openoffice.comp.test.ImageShrink
+  / UNO
+    / ACTIVATOR
+      Value: Type = RG_VALUETYPE_STRING
+            Size = 26
+            Data = "com.sun.star.loader.Java2"
+
+    / SERVICES
+      / org.openoffice.test.ImageShrink
+    / LOCATION
+      Value: Type = RG_VALUETYPE_STRING
+            Size = 50
+            Data = "file:///X:/office60eng/program/classes/thumbs.jar"
+If the UCR key is missing, the problem is with regmerge. The most probable cause are missing .urd files. Be careful when writing the makefile. If .urd files are missing when regmerge is launched by the makefile, regmerge continues and creates a barebone .rdb file, sometimes without any type info.
+
+If regview can not find the /SERVICES and /IMPLEMENTATIONS keys or they have the wrong content, the problem occurred when regcomp was run. This can be caused by wrong path names in the regcomp arguments.
+
+Also, a wrong SystemClasspath setup in java(.ini|rc) (prior to OpenOffice.org 2.x could be the cause of regcomp error messages about missing classes. Check what the SystemClasspath entry in java(.ini|rc) specifies for the Java UNO runtime jars.
+
+Ensure that regcomp is being run from the current directory when registering Java components. In addition, ensure <OfficePath>/program is the current folder when regcomp is run. Verify that regcomp is in the current folder.
+
+Check the Java VM settings
+Whenever the VM service is instantiated by LibreOffice, it uses the Java configuration settings in LibreOffice. This happens during the registration of Java components, therefore make sure that Java is enabled. Choose Tools-Options in LibreOffice, so that the dialog appears. Expand the OpenOffice node and select Security. Select the Enable checkbox in the Java section and click OK.
+
+Check the Manifest
+Make sure the manifest file contains the correct entry for the registration class name. The file must contain the following line:
+
+ RegistrationClassName: <full name of package and class>
+Please make sure that the manifest file ends up with a new line. The registration class name must be the one that implements the __writeRegistryServiceInfo() and __getServiceFactory() methods. The RegistrationClassName to be entered in the manifest for our example is org.openoffice.comp.test.ImageShrink.
+
+Adjust CLASSPATH for Additional Classes
+LibreOffice maintains its own system classpath and a user classpath when it starts the Java VM for Java components. The jar file that contains the service implementation is not required in the system or user classpath. If a component depends on jar files or classes that are not part of the Java UNO runtime jars, then they must be put on the classpath. This can be achieved by editing the classpath in the options dialog (Tools – Options – OpenOffice – Security).
+
+Disable Debug Options
+If the debug options (-Xdebug, -Xrunjdwp) are in the java(.ini|rc) (prior to OpenOffice 2.x) file, disable them by putting semicolons at the beginning of the respective lines. For OpenOffice.org 2.x and later, make sure the debug options are removed in the Parameters dialog. This dialog can be found in the options dialog (Tools – Options – OpenOffice – Java). The regcomp or tool or the Extension Manager may hang, because the JVM is waiting for a debugger to be attached.

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry" 
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    oor:name="ServiceManager" 
+                    oor:package="org.openoffice.Setup">
+  <node oor:name="InstalledComponents">
+    <node oor:name="org.ofdrw.uno.OFDImportFilter" oor:op="replace">
+      <prop oor:name="ImplementationName" oor:type="xs:string">
+        <value>org.ofdrw.uno.OFDImportFilter</value>
+      </prop>
+      <prop oor:name="SupportedServices" oor:type="xs:string">
+        <value oor:separator=";">com.sun.star.document.ImportFilter;org.ofdrw.uno.OFDImportFilter</value>
+      </prop>
+      <prop oor:name="ImplementationLocation" oor:type="xs:string">
+        <value>ofdrw-uno-launcher.jar</value>
+      </prop>
+      <prop oor:name="ActivatorName" oor:type="xs:string">
+        <value>com.sun.star.loader.Java2</value>
+      </prop>
+    </node>
+  </node>
+</oor:component-data>

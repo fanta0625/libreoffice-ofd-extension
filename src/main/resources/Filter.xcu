@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    oor:name="Filter"
+                    oor:package="org.openoffice.TypeDetection">
+  <node oor:name="Filters">
+    <node oor:name="OFD_Import_Filter" oor:op="fuse">
+      <prop oor:name="Flags">
+        <value>IMPORT ALIEN 3RDPARTYFILTER SUPPORTSSELECTION</value>
+      </prop>
+      <prop oor:name="UIComponent">
+        <value></value>
+      </prop>
+      <prop oor:name="FilterService">
+        <value>org.loongoffice.ofd.reader.OFDImportFilter</value>
+      </prop>
+      <prop oor:name="Type">
+        <value>ofd_OpenFormDocument</value>
+      </prop>
+      <prop oor:name="FileFormatVersion">
+        <value>0</value>
+      </prop>
+      <prop oor:name="TemplateName">
+        <value></value>
+      </prop>
+      <prop oor:name="DocumentService">
+        <value>com.sun.star.drawing.DrawingDocument</value>
+      </prop>
+      <prop oor:name="UIName">
+        <value xml:lang="en-US">OFD Import Filter</value>
+        <value xml:lang="zh-CN">OFD 导入过滤器</value>
+      </prop>
+      <prop oor:name="UserData">
+        <value></value>
+      </prop>
+    </node>
+  </node>
+</oor:component-data>

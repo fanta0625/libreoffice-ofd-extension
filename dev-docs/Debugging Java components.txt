@@ -1,0 +1,42 @@
+Test the Registration
+A short LibreOffice Basic program indicates if the program runs went smoothly, by selecting Tools – Macro and entering a new macro name on the left, such as TestImageShrink and click New to create a new procedure. In the procedure, enter the appropriate code of the component. The test routine for ImageShrink would be:
+
+Sub TestImageShrink
+    oTestComp = createUnoService("org.openoffice.test.ImageShrink")
+    MsgBox oTestComp.dbg_methods
+    MsgBox oTestComp.dbg_properties
+    MsgBox oTestComp.dbg_supportedInterfaces
+end sub
+The result should be three dialogs showing the methods, properties and interfaces supported by the implementation. Note that the interface attributes do not appear as get/set methods, but as properties in Basic. If the dialogs do not show what is expected, refer to the section Troubleshooting.
+
+Debugging
+To increase turnaround cycles and source level debugging, configure the IDE to use GNU makefiles for code generation and prepare LibreOffice for Java debugging.
+
+Support for GNU make
+A NetBeans extension, available on makefile.netbeans.org, that adds basic support for GNU makefiles. When it is enabled, edit the makefile in the IDE and use the makefile to build. To install and enable this module, select Tools – Setup Wizard and click Next to go to the Module installation page. Find the module Makefiles and change the corresponding entry to True in the Enabled column. Finish using the setup wizard. If the module is not available in the installation, use Tools – Update Center to get the module from www.netbeans.org. A new entry, Makefile Support, appears in the online help when Help – Contents is selected. Makefile Support provides further configuration options. The settings Run a Makefile and Test a Makefile can be found in Tools – Options – Uncategorized – Compiler Types and – Execution Types.
+
+Put the makefile into the project source folder that was mounted when the project was created. To build the project using the makefile, highlight the makefile in the Explorer and press F11.
+
+Documentation for GNU make command-line options and syntax are available at www.gnu.org. The sample Thumbs in the samples folder along with this manual contains a makefile that with a few adjustments is useful for Java components.
+
+Component Debugging
+You can attach any IDE to the JVM in LibreOffice in order to debug it.
+
+Configure the JVM used by LibreOffice to listen for debugger connections via the options dialog: expand the LibreOffice node in the tree on the left-hand side and chose Advanced. On the right-hand side, push the Parameters button to open a dialog. In this dialog, enter the following debug options as two separate entries.
+
+-Xdebug
+-Xrunjdwp:transport=dt_socket,server=y,address=8000,suspend=n
+Note that the parameters have to be entered the same way as they would be provided on the command line when starting the Java executable. That is, retain the leading '-' and spaces, if necessary.
+
+The last line causes the JVM to listen for a debugger on port 8000. The JVM starts listening as soon as it runs and does not wait until a debugger connects to the JVM. Launch the office and instantiate the Java component, so that the office invokes the JVM in listening mode.
+
+If you instead want the JVM to wait for you to connect the debugger before executing code, set suspend=y instead:
+
+-Xdebug
+-Xrunjdwp:transport=dt_socket,server=y,address=8000,suspend=y
+Once a Java component is instantiated, the JVM keeps listening even if the component goes out of scope. Open the appropriate source file in your IDE and set breakpoints as needed. Then connect to the (remote) JVM with your IDE using port 8000. You find IDE specific instructions below.
+
+NetBeans
+Choose Debug - Attach, select Java Platform Debugger Architecture (JPDA) as debugger type and SocketAttach (Attaches by socket to other VMs) as the connector. The Host should be localhost and the Port must be 8000. Click OK to connect the Java Debugger to the JVM the office has started previously step.
+
+Once the debugger connects to the running JVM, NetBeans switches to debug mode, the output windows shows a message that a connection on port 8000 is established and threads are visible, as if the debugging was local. If necessary, start your component once again. As soon as the component reaches a breakpoint in the source code, the source editor window opens with the breakpoint highlighted by a green arrow.

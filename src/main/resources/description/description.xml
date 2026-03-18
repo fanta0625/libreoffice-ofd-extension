@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<description xmlns="http://openoffice.org/extensions/description/2006"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            xmlns:d="http://openoffice.org/extensions/description/2006">
+
+    <identifier value="@extension.identifier@"/>
+    <version value="1.0.0"/>
+
+    <display-name>
+        <name lang="en-US">@extension.displayName@</name>
+        <name lang="zh-CN">@extension.displayName@</name>
+    </display-name>
+
+    <!-- 图标 -->
+    <icon>
+        <default xlink:href="description/icon.png"/>
+    </icon>
+
+    <publisher>
+        <name xlink:href="https://github.com/loongson/libreoffice-ofd-extension" lang="en-US">LibreOffice OFD Extension Contributors</name>
+        <name xlink:href="https://github.com/loongson/libreoffice-ofd-extension" lang="zh-CN">LibreOffice OFD 扩展贡献者</name>
+    </publisher>
+
+    <dependencies>
+        <l:LibreOffice-minimal-version value="24.2" d:name="LibreOffice 24.2"
+            xmlns:l="http://libreoffice.org/extensions/description/2011"/>
+    </dependencies>
+
+    <extension-description>
+        <src lang="en-US" xlink:href="description/description-en-US.txt"/>
+        <src lang="zh-CN" xlink:href="description/description-zh-CN.txt"/>
+    </extension-description>
+
+    <release-notes>
+        <src lang="en-US" xlink:href="description/CHANGELOG.md"/>
+        <src lang="zh-CN" xlink:href="description/CHANGELOG.zh-CN.md"/>
+    </release-notes>
+
+    <!-- 可选: 更新信息 -->
+    <!--
+    <update-information>
+        <src xlink:href="https://github.com/loongson/libreoffice-ofd-uno-extension/releases/latest/download/update.xml"/>
+    </update-information>
+    -->
+
+</description>

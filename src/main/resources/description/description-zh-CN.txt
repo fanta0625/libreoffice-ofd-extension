@@ -1,0 +1,1 @@
+使 @extension.officeName@ Draw 能够打开 OFD（开放版式文档）文件的扩展。

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    oor:name="Types"
+                    oor:package="org.openoffice.TypeDetection">
+  <node oor:name="Types">
+    <node oor:name="ofd_OpenFormDocument" oor:op="fuse">
+      <prop oor:name="UIName">
+        <value xml:lang="en-US">Open Fixed-layout Document</value>
+        <value xml:lang="zh-CN">开放版式文档</value>
+      </prop>
+      <prop oor:name="ClipboardFormat">
+        <value></value>
+      </prop>
+      <prop oor:name="DetectService">
+        <value>org.loongoffice.ofd.reader.OFDImportFilter</value>
+      </prop>
+      <prop oor:name="Extensions">
+        <value>ofd</value>
+      </prop>
+      <prop oor:name="MediaType">
+        <value>application/ofd</value>
+      </prop>
+      <prop oor:name="Preferred">
+        <value>true</value>
+      </prop>
+      <prop oor:name="PreferredFilter">
+        <value>OFD_Import_Filter</value>
+      </prop>
+      <prop oor:name="URLPattern">
+        <value></value>
+      </prop>
+    </node>
+  </node>
+</oor:component-data>

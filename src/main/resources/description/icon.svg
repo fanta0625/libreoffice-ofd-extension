@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 128 128"
+   version="1.1"
+   id="svg4"
+   sodipodi:docname="icon.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="namedview4"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="3.0273438"
+     inkscape:cx="68.541935"
+     inkscape:cy="80.433548"
+     inkscape:window-width="1920"
+     inkscape:window-height="990"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg4" />
+  <!-- 外框（白色背景） -->
+  <rect
+     x="15.02958"
+     y="3.0476446"
+     width="97.940842"
+     height="121.91373"
+     rx="8.4948692"
+     fill="#ffffff"
+     stroke="#ed1c24"
+     stroke-width="5.01954"
+     id="rect1" />
+  <!-- OFD 标题 -->
+  <text
+     x="39.005081"
+     y="62.416626"
+     font-family="Arial, sans-serif"
+     font-size="19.5052px"
+     font-weight="bold"
+     fill="#ed1c24"
+     id="text1"
+     transform="scale(0.9752598,1.0253678)"
+     style="stroke-width:0.97526">OFD</text>
+  <!-- 阅读框 -->
+  <path
+     d="m 78,56 h 14 a 3,3 0 0 1 3,3 v 41 a 3,3 0 0 1 -3,3 H 36 a 3,3 0 0 1 -3,-3 V 59 a 3,3 0 0 1 3,-3 h 2"
+     fill="none"
+     stroke="#ed1c24"
+     stroke-width="2.5"
+     id="path1" />
+  <!-- 阅读内容 -->
+  <rect
+     x="42"
+     y="70"
+     width="46"
+     height="5"
+     rx="2.5"
+     fill="#108010"
+     id="rect2" />
+  <rect
+     x="42"
+     y="80"
+     width="38"
+     height="5"
+     rx="2.5"
+     fill="#108010"
+     id="rect3" />
+  <rect
+     x="42"
+     y="90"
+     width="42"
+     height="5"
+     rx="2.5"
+     fill="#108010"
+     id="rect4" />
+</svg>

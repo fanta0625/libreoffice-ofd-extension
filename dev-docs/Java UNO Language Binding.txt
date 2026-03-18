@@ -1,0 +1,696 @@
+Java Language Binding
+The Java language binding gives developers the choice of using Java or UNO components for client programs. A Java program can access components written in other languages and built with a different compiler, as well as remote objects, because of the seamless interaction of UNO bridges.
+
+Java delivers a rich set of classes that can be used within client programs or component implementations. However, when it comes to interaction with other UNO objects, use UNO interfaces, because only those are known to the bridge and can be mapped into other environments.
+
+To control the office from a client program, the client needs a Java 1.3 (or later) installation, a free socket port, and the jar file libreoffice.jar. A Java installation on the server-side is not necessary. A step-by-step description is given in the chapter First Steps
+
+When using Java components, the office is installed with Java support. Also make sure that Java is enabled: there is a switch that can be set to achieve this in the Tools - Options - OpenOffice - Security dialog. All necessary jar files should have been installed during the LibreOffice setup. A detailed explanation can be found in the chapter Storing the Service Manager for Further Use.
+
+The Java UNO Runtime is documented in the Java UNO Reference which can be found in the LibreOffice Software development Kit (SDK) or on www.openoffice.org/api/.
+
+Getting a Service Manager
+Office objects that provide the desired functionality are required when writing a client application that accesses the office. The root of all these objects is the service manager component, therefore clients need to instantiate it. Service manager runs in the office process, therefore office must be running first when you use Java components that are instantiated by the office. In a client-server scenario, the office has to be launched directly. The interprocess communication uses a remote protocol that can be provided as a command-line argument to the office:
+
+soffice --accept=socket,host=localhost,port=8100;urp
+The client obtains a reference to the global service manager of the office (the server) using a local com.sun.star.bridge.UnoUrlResolver. The global service manager of the office is used to get objects from the other side of the bridge. In this case, an instance of the com.sun.star.frame.Desktop is acquired:
+
+import com.sun.star.uno.XComponentContext;
+import com.sun.star.comp.helper.Bootstrap;
+import com.sun.star.lang.XMultiComponentFactory;
+import com.sun.star.bridge.UnoUrlResolver;
+import com.sun.star.bridge.XUnoUrlResolver;
+import com.sun.star.beans.XPropertySet
+import com.sun.star.uno.UnoRuntime;
+
+XComponentContext xcomponentcontext = Bootstrap.createInitialComponentContext(null);
+
+// create a connector, so that it can contact the office
+XUnoUrlResolver urlResolver = UnoUrlResolver.create(xcomponentcontext);
+
+Object initialObject = urlResolver.resolve(
+    "uno:socket,host=localhost,port=8100;urp;StarOffice.ServiceManager");
+
+XMultiComponentFactory xOfficeFactory = UnoRuntime.queryInterface(
+    XMultiComponentFactory.class, initialObject);
+
+// retrieve the component context as property (it is not yet exported from the office)
+// Query for the XPropertySet interface.
+XPropertySet xProperySet = UnoRuntime.queryInterface(
+    XPropertySet.class, xOfficeFactory);
+
+// Get the default context from the office server.
+Object oDefaultContext = xProperySet.getPropertyValue("DefaultContext");
+
+// Query for the interface XComponentContext.
+XComponentContext xOfficeComponentContext = UnoRuntime.queryInterface(
+    XComponentContext.class, oDefaultContext);
+
+// now create the desktop service
+// NOTE: use the office component context here!
+Object oDesktop = xOfficeFactory.createInstanceWithContext(
+      "com.sun.star.frame.Desktop", xOfficeComponentContext);
+As the example shows, a local component context is created through the com.sun.star.comp.helper.Bootstrap class (a Java UNO runtime class). Its implementation provides a service manager that is limited in the number of services it can create. The names of these services are:
+
+com.sun.star.lang.ServiceManager
+com.sun.star.lang.MultiServiceFactory
+com.sun.star.loader.Java
+com.sun.star.loader.Java2
+com.sun.star.bridge.UnoUrlResolver
+com.sun.star.bridge.BridgeFactory
+com.sun.star.connection.Connector
+com.sun.star.connection.Acceptor
+They are sufficient to establish a remote connection and obtain the fully featured service manager provided by the office.
+
+	
+Tip:
+The service manager of the local component context could create other components, but this is only possible if the service manager is provided with the respective factories during runtime. An example that shows how this works can be found in the implementation of the Bootstrap class in the project javaunohelper.
+
+There is also a service manager that uses a registry database to locate services. It is implemented by the class com.sun.star.comp.helper.RegistryServiceFactory in the project javaunohelper. However, the implementation uses a native registry service manager instead of providing a pure Java implementation.
+
+
+
+Transparent Use of Office UNO Components
+If some client code wants to use office UNO components, then a typical use case is that the client code first looks for an existing office installation. If an installation is found, the client checks if the office process is already running. If no office process is running, an office process is started. After that, the client code connects to the running office using remote UNO mechanisms in order to get the remote component context of that office. After this, the client code can use the remote component context to access arbitrary office UNO components. From the perspective of the client code, there is no difference between local and remote components.
+
+The bootstrap method
+Therefore, the remote office component context is provided in a more transparent way by the com.sun.star.comp.helper.Bootstrap.bootstrap() method, which bootstraps the component context from a UNO installation. A simple client application may then look like:
+
+// get the remote office component context
+XComponentContext xContext =
+    com.sun.star.comp.helper.Bootstrap.bootstrap();
+
+// get the remote office service manager
+XMultiComponentFactory xServiceManager =
+    xContext.getServiceManager();
+
+// get an instance of the remote office desktop UNO service
+Object desktop = xServiceManager.createInstanceWithContext(
+    "com.sun.star.frame.Desktop", xContext );
+The com.sun.star.comp.helper.Bootstrap.bootstrap() method first bootstraps a local component context and then tries to establish a named pipe connection to a running office. If no office is running, an office process is started. If the connection succeeds, the remote component context is returned.
+
+	
+Note:
+Note, that the com.sun.star.comp.helper.Bootstrap.bootstrap() method is only available since OpenOffice.org 1.1.2.
+
+SDK tooling
+For convenience, the LibreOffice Software Development Kit (SDK) provides some tooling for writing Java client applications.
+
+One of the requirements for a Java client application is that Java finds the com.sun.star.comp.helper.Bootstrap class and all the UNO types (for example, UNO interfaces) and other Java UNO language binding classes (for example, com.sun.star.uno.AnyConverter) used by the client code. A natural approach would be to add the UNO jar files to the Java CLASSPATH, but this requires the knowledge of the location of a UNO installation. Other approaches would be to use the Java extension mechanism or to deploy the jar files containing the UNO types in the client jar file. Both of those approaches have several drawbacks, the most important one is the problem of type conflicts, for example, if a deployed component adds new UNO types. The SDK tooling therefore provides a more dynamic approach, namely a customized class loader. The customized class loader has an extended search path, which also includes the path to a UNO installation. The UNO installation is auto-detected on the system by using a search algorithm.
+
+Customized Class Loader
+The concept is based on the requirement that every class that uses UNO types, or other classes that come with a office installation, gets loaded by a customized class loader. This customized class loader recognizes the location of a UNO installation and loads every class from a jar or class file that belongs to the office installation. That means that the customized class loader must be instantiated and initialized before the first class that uses UNO is loaded.
+
+The SDK tooling allows to build a client jar file, which can be invoked by the following:
+
+java -jar SimpleBootstrap_java.jar
+The client jar file contains the following files:
+
+ META-INF/MANIFEST.MF
+ com/sun/star/lib/loader/InstallationFinder$StreamGobbler.class
+ com/sun/star/lib/loader/InstallationFinder.class
+ com/sun/star/lib/loader/Loader$CustomURLClassLoader.class
+ com/sun/star/lib/loader/Loader.class
+ com/sun/star/lib/loader/WinRegKey.class
+ com/sun/star/lib/loader/WinRegKeyException.class
+ win/unowinreg.dll
+ SimpleBootstrap_java.class
+A client application created by using the SDK tooling will automatically load the class com.sun.star.lib.loader.Loader, which sets up the customized class loader for loading the application class. In order to achieve this, the SDK tooling creates a manifest file that contains the following Main-Class entry
+
+ Main-Class: com.sun.star.lib.loader.Loader
+The customized loader needs a special entry in the manifest file that specifies the name of the class that contains the client application code:
+
+ Name: com/sun/star/lib/loader/Loader.class
+ Application-Class: SimpleBootstrap_java
+The implementation of com.sun.star.lib.loader.Loader.main reads this entry and calls the main method of the application class after the customized class loader has been created and set up properly. The SDK tooling will take over the task of writing the correct manifest entry for the application class.
+
+Finding a UNO Installation
+The location of a UNO installation can be specified by the Java system property com.sun.star.lib.loader.unopath. The system property can be passed to the client application by using the -D flag, e.g
+
+java
+-Dcom.sun.star.lib.loader.unopath=/opt/OpenOffice.org/program
+-jar SimpleBootstrap_java.jar
+In addition, it is possible to specify a UNO installation by setting the environment variable UNO_PATH to the program directory of a UNO installation, for example,
+
+export UNO_PATH=/opt/OpenOffice.org/program
+	
+Warning:
+This does not work with Java 1.3.1 and Java 1.4, because environment variables are not supported in those Java versions.
+
+
+If no UNO installation is specified by the user, the default UNO installation on the system is searched. The search algorithm is platform dependent.
+
+On the Windows platform, the UNO installation is found by reading the default value of the key 'Software\OpenOffice.org\UNO\InstallPath' from the root key HKEY_CURRENT_USER in the Windows Registry. If this key is missing, the key is read from the root key HKEY_LOCAL_MACHINE. One of those keys is always written during the installation of an office. In a single user installation the key is written to HKEY_CURRENT_USER, in a multi-user installation of an administrator to HKEY_LOCAL_MACHINE. Note that the default installation is the last installed office, but with the restriction, that HKEY_CURRENT_USER has a higher priority than HKEY_LOCAL_MACHINE. The reading from the Windows Registry requires that the native library unowinreg.dll is part of the application jar file or can be found in the java.library.path. The SDK tooling automatically will put the native library into the jar file containing the client application.
+
+On the Unix/Linux platforms, the UNO installation is found from the PATH environment variable. Note that for Java 1.3.1 and Java 1.4, the installation is found by using the which command, because environment variables are not supported with those Java versions. Both methods require that the soffice executable or a symbolic link is in one of the directories listed in the PATH environment variable. For older versions than OpenOffice.org 2.x the above described methods may fail. In this case the UNO installation is taken from the .sversionrc file in the user's home directory. The default installation is the last entry in the .sversionrc file which points to a UNO installation. Note that there won't be a .sversionrc file with OpenOffice.org 2.x anymore.
+
+Handling Interfaces
+The service manager is created in the server process and the Java UNO remote bridge ensures that its XInterface is transported back to the client. A Java proxy object is constructed that can be used by the client code. This object is called the initial object, because it is the first object created by the bridge. When another object is obtained through this object, then the bridge creates a new proxy. For instance, if a function is called that returns an interface. That is, the original object is actually running in the server process (the office) and calls to the proxy are forwarded by the bridge. Not only interfaces are converted, but function arguments, return values and exceptions.
+
+The Java bridge maps objects on a per-interface basis, that is, in the first step only the interface is converted that is returned by a function described in the API reference. For example, if you have the service manager and use it to create another component, you initially get a com.sun.star.uno.XInterface:
+
+XInterface xint= (XInterface)
+serviceManager.createInstance("com.sun.star.bridge.oleautomation.Factory");
+You know from the service description that Factory implements a com.sun.star.lang.XMultiServiceFactory interface. However, you cannot cast the object or call the interface function on the object, since the object is only a proxy for just one interface, XInterface. Therefore, you have to use a mechanism that is provided with the Java bridge that generates proxy objects on demand. For example:
+
+XMultiServiceFactory xfac = UnoRuntime.queryInterface(XMultiServiceFactory.class, xint);
+If xint is a proxy, then queryInterface() hands out another proxy for XMultiServiceFactory provided that the original object implements it.
+
+	
+Note:
+Starting with OpenOffice.org 3.2, you can leave out the cast to XMultiServiceFactory in the example above; through the use of generics (introduced in Java 5), the Java compiler will figure this out itself.
+
+Interface proxies can be used as arguments in function calls on other proxy objects. For example:
+
+// client side
+// obj is a proxy interface and returns another interface through its func() method
+XSomething ret = obj.func();
+
+// anotherObject is a proxy interface, too. Its method func(XSomething arg)
+// takes the interface ret obtained from obj
+anotherObject.func(ret);
+In the server process, the obj object would receive the original ret object as a function argument.
+
+It is also possible to have Java components on the client side. As well, they can be used as function arguments, then the bridge would set up proxies for them in the server process.
+
+Not all language concepts of UNO have a corresponding language element in Java. For example, there are no structs and all-purpose out parameters. Refer to Type Mappings for how those concepts are mapped.
+
+Interface handling normally involves the ability of com.sun.star.uno.XInterface to acquire and release objects by reference counting. In Java, the programmer does not bother with acquire() and release(), since the Java UNO runtime automatically acquires objects on the server side when com.sun.star.uno.UnoRuntime.queryInterface() is used. Conversely, when the Java garbage collector deletes your references, the Java UNO runtime releases the corresponding office objects. If a UNO object is written in Java, no reference counting is used to control its lifetime. The garbage collector takes that responsibility.
+
+Sometimes it is necessary to find out if two interfaces belong to the same object. In Java, you would compare the references with the equality operator '=='. This works as long as the interfaces refer to a local Java object. Often the interfaces are proxies and the real objects reside in a remote process. There can be several proxies that belong to the same object, because objects are bridged on a per-interface basis. Those proxies are Java objects and comparing their references would not establish them as parts of the same object. To determine if interfaces are part of the same UNO object, use the method areSame() at the com.sun.star.uno.UnoRuntime class:
+
+static public boolean areSame(Object object1, Object object2)
+Type Mappings
+Mapping of Simple Types
+The following table shows the mapping of simple UNO types to the corresponding Java types.
+
+UNO	Java
+void	void
+boolean	boolean
+byte	byte
+short	short
+unsigned short	short
+long	int
+unsigned long	int
+hyper	long
+unsigned hyper	long
+float	float
+double	double
+char	char
+string	java.lang.String
+type	com.sun.star.uno.Type
+any	java.lang.Object/com.sun.star.uno.Any
+The mapping between the values of the corresponding UNO and Java types is obvious, except for a few cases that are explained in the following sections:
+
+Mapping of Unsigned Integer Types
+An unsigned UNO integer type encompasses the range from 0 to 2N − 1, inclusive, while the corresponding signed Java integer type encompasses the range from −2N − 1 to 2N − 1 − 1, inclusive (where N is 16, 32, or 64 for unsigned short, unsigned long, or unsigned hyper, respectively). The mapping is done modulo N, that is: 0 is mapped to 0; 2N − 1 − 1 is mapped to 2N − 1 − 1; 2N − 1 is mapped to −2N − 1; and 2N − 1 is mapped to −1.
+
+Users should be careful when using any of the deprecated UNO unsigned integer types. A user is responsible for correctly interpreting values of signed Java integer types as unsigned integer values in such cases.
+
+Mapping of String
+The mapping between the UNO string type and java.lang.String is straightforward, except for three details:
+
+Only non-null references to java.lang.String are allowed in the context of UNO.
+The length of a string that can be represented by a java.lang.String object is limited. It is an error to use a longer UNO string value in the context of the Java language binding.
+An object of type java.lang.String can represent an arbitrary sequence of UTF-16 code units, whereas a value of the UNO string type is an arbitrary sequence of Unicode scalar values. This only matters in so far as some individual UTF-16 code units (namely the individual high- and low-surrogate code points in the range D800–DFFF) have no corresponding Unicode scalar values, and are thus forbidden in the context of UNO. For example, the Java string "\uD800" is illegal in this context, while the string "\uD800\uDC00" would be legal. See www.unicode.org for more information on the details of Unicode.
+Mapping of Type
+The Java class com.sun.star.uno.Type is used to represent the UNO type; only non-null references to com.sun.star.uno.Type are valid. (It is a historic mistake that com.sun.star.Type is not final. You should never derive from it in your code.)
+
+In many places in the Java UNO runtime, there are convenience functions that take values of type java.lang.Class where conceptually a value of com.sun.star.uno.Type would be expected. For example, there are two overloaded versions of the method com.sun.star.uno.Uno­Runtime.query­Interface, one with a parameter of type com.sun.star.uno.Type and one with a parameter of type java.lang.Class. See the documentation of com.sun.star.uno.Type for the details of how values of java.lang.Class are interpreted in such a context.
+
+Mapping of Any
+There is a dedicated com.sun.star.uno.Any type, but it is not always used. An any in the API reference is represented by a java.lang.Object in Java UNO. An Object reference can be used to refer to all possible Java objects. This does not work with primitive types, but if you need to use them as an any, there are Java wrapper classes available that allow primitive types to be used as objects. Also, a Java Object always brings along its type information by means of an instance of java.lang.Class. Therefore a variable declared as:
+
+Object ref;
+can be used with all objects and its type information is available by calling:
+
+ref.getClass();
+Those qualities of Object are sufficient to replace the Any in most cases. Even Java interfaces generated from IDL interfaces do not contain Anys, instead Object references are used in place of Anys. Cases where an explicit Any is needed to not lose information contain unsigned integer types, all interface types except the basic XInterface, and the void type.
+
+	
+Warning:
+However, implementations of those interfaces must be able to deal with real Anys that can also be passed by means of Object references.
+
+
+To facilitate the handling of the Any type, use the com.sun.star.uno.AnyConverter class. It is documented in the Java UNO reference. The following list sums up its methods:
+
+static boolean isArray(Object object)
+static boolean isBoolean(Object object)
+static boolean isByte(Object object)
+static boolean isChar(Object object)
+static boolean isDouble(Object object)
+static boolean isFloat(Object object)
+static boolean isInt(Object object)
+static boolean isLong(Object object)
+static boolean isObject(Object object)
+static boolean isShort(Object object)
+static boolean isString(Object object)
+static boolean isType(Object object)
+static boolean isVoid(Object object)
+static Object toArray(Object object)
+static boolean toBoolean(Object object)
+static byte toByte(Object object)
+static char toChar(Object object)
+static double toDouble(Object object)
+static float toFloat(Object object)
+static int toInt(Object object)
+static long toLong(Object object)
+static Object toObject(Type type, Object object)
+static short toShort(Object object)
+static java.lang.String toString(Object object)
+static Type toType(Object object)
+The Java com.sun.star.uno.Any is needed in situations when the type needs to be specified explicitly. Assume there is a C++ component with an interface function which is declared in UNOIDL as:
+
+//UNOIDL
+void foo(any arg);
+The corresponding C++ implementation could be:
+
+void foo(const Any& arg)
+{
+    const Type& t = any.getValueType();
+    if (t == cppu::UnoType< XReference >::get())
+    {
+        Reference<XReference> myref = *reinterpret_cast<const Reference<XReference>*>(arg.getValue());
+        ...
+    }
+}
+In the example, the any is checked if it contains the expected interface. If it does, it is assigned accordingly. If the any contained a different interface, a query would be performed for the expected interface. If the function is called from Java, then an interface has to be supplied that is an object. That object could implement several interfaces and the bridge would use the basic XInterface. If this is not the interface that is expected, then the C++ implementation has to call queryInterface to obtain the desired interface. In a remote scenario, those queryInterface() calls could lead to a noticeable performance loss. If you use a Java Any as a parameter for foo(), the intended interface is sent across the bridge.
+
+It is a historic mistake that com.sun.star.uno.Any is not final. You should never derive from it in your code.
+
+Mapping of Sequence Types
+A UNO sequence type with a given component type is mapped to the Java array type with corresponding component type.
+
+UNO sequence<long> is mapped to Java int[].
+UNO sequence< sequence<long> > is mapped to Java int[][].
+Only non-null references to those Java array types are valid. As usual, non-null references to other Java array types that are assignment compatible to a given array type can also be used, but doing so can cause java.lang.ArrayStoreExceptions. In Java, the maximal length of an array is limited; therefore, it is an error if a UNO sequence that is too long is used in the context of the Java language binding.
+
+Mapping of Enum Types
+An UNO enum type is mapped to a public, final Java class with the same name, derived from the class com.sun.star.uno.Enum. Only non-null references to the generated final classes are valid.
+
+The base class com.sun.star.uno.Enum declares a protected member to store the actual value, a protected constructor to initialize the value and a public getValue() method to get the actual value. The generated final class has a protected constructor and a public method getDefault() that returns an instance with the value of the first enum member as a default. For each member of a UNO enum type, the corresponding Java class declares a public static member of the given Java type that is initialized with the value of the UNO enum member. The Java class for the enum type has an additional public method fromInt() that returns the instance with the specified value. The following IDL definition for com.sun.star.uno.TypeClass:
+
+module com { module sun { module star { module uno {
+
+enum TypeClass {
+    INTERFACE,
+    SERVICE,
+    IMPLEMENTATION,
+    STRUCT,
+    TYPEDEF,
+    ...
+};
+
+}; }; }; };
+is mapped to:
+
+package com.sun.star.uno;
+
+public final class TypeClass extends com.sun.star.uno.Enum {
+    private TypeClass(int value) {
+        super(value);
+    }
+
+    public static TypeClass getDefault() {
+        return INTERFACE;
+    }
+
+    public static final TypeClass INTERFACE = new TypeClass(0);
+    public static final TypeClass SERVICE = new TypeClass(1);
+    public static final TypeClass IMPLEMENTATION = new TypeClass(2);
+    public static final TypeClass STRUCT = new TypeClass(3);
+    public static final TypeClass TYPEDEF = new TypeClass(4);
+    ...
+
+    public static TypeClass fromInt(int value) {
+        switch (value) {
+        case 0:
+            return INTERFACE;
+        case 1:
+            return SERVICE;
+        case 2:
+            return IMPLEMENTATION;
+        case 3:
+            return STRUCT;
+        case 4:
+            return TYPEDEF;
+        ...
+        }
+    }
+}
+Mapping of Struct Types
+A plain UNO struct type is mapped to a public Java class with the same name. Only non-null references to such a class are valid. Each member of the UNO struct type is mapped to a public field with the same name and corresponding type. The class provides a default constructor which initializes all members with default values, and a constructor which takes explicit values for all struct members. If a plain struct type inherits from another struct type, the generated class extends the class of the inherited struct type.
+
+module com { module sun { module star { module chart {
+
+struct ChartDataChangeEvent: com::sun::star::lang::EventObject {
+    ChartDataChangeType Type;
+    short StartColumn;
+    short EndColumn;
+    short StartRow;
+    short EndRow;
+};
+
+}; }; }; };
+is mapped to:
+
+package com.sun.star.chart;
+
+public class ChartDataChangeEvent extends com.sun.star.lang.EventObject {
+    public ChartDataChangeType Type;
+    public short StartColumn;
+    public short EndColumn;
+    public short StartRow;
+    public short EndRow;
+
+    public ChartDataChangeEvent() {
+        Type = ChartDataChangeType.getDefault();
+    }
+
+    public ChartDataChangeEvent(
+        Object Source, ChartDataChangeType Type,
+        short StartColumn, short EndColumn, short StartRow, short EndRow)
+    {
+        super(Source);
+        this.Type = Type;
+        this.StartColumn = StartColumn;
+        this.EndColumn = EndColumn;
+        this.StartRow = StartRow;
+        this.EndRow = EndRow;
+    }
+}
+Similar to a plain struct type, a polymorphic UNO struct type template is also mapped to a Java class. The only difference is how struct members with parametric types are handled, and this handling in turn differs between Java 1.5 and older versions.
+
+Take, for example, the polymorphic struct type template:
+
+module com { module sun { module star { module beans {
+
+struct Optional<T> {
+    boolean IsPresent;
+    T Value;
+};
+
+}; }; }; };
+In Java 1.5, a polymorphic struct type template with a list of type parameters is mapped to a generic Java class with a corresponding list of unbounded type parameters. For com.sun.star.beans.Optional_3_01T_01_4, that means that the corresponding Java 1.5 class looks something like the following example:
+
+package com.sun.star.beans;
+
+public class Optional<T> {
+    public boolean IsPresent;
+    public T Value;
+
+    public Optional() {}
+
+    public Optional(boolean IsPresent, T Value) {
+        this.IsPresent = IsPresent;
+        this.Value = Value;
+    }
+}
+Instances of such polymorphic struct type templates map to Java 1.5 in a natural way. For example, UNO Optional<string> maps to Java Optional<String>. However, UNO type arguments that would normally map to primitive Java types map to corresponding Java wrapper types instead:
+
+boolean maps to java.lang.Boolean
+byte maps to java.lang.Byte
+short and unsigned short map to java.lang.Short
+long and unsigned long map to java.lang.Integer
+hyper and unsigned hyper map to java.lang.Long
+float maps to java.lang.Float
+double maps to java.lang.Double
+char maps to java.lang.Character
+For example, UNO Optional<long> maps to Java Optional<Integer>. Also note that UNO type arguments of both any and com.sun.star.uno.XInterface map to java.lang.Object, and thus, for example, both Optional<any> and Optional<XInterface> map to Java Optional<Object>.
+
+Still, there are a few problems and pitfalls when dealing with parametric members of default-constructed polymorphic struct type instances:
+
+One problem is that such members are initialized to null by the default constructor, but null is generally not a legal value in the context of Java UNO, except for values of any or interface type. For example, new Optional<PropertyValue>().Value is of type com.sun.star.beans.PropertyValue (a struct type), but is a null reference. Similarly, new Optional<Boolean>().Value is also a null reference (instead of a reference to Boolean.FALSE, say). The chosen solution is to generally allow null references as values of Java class fields that correspond to parametric members of polymorphic UNO struct types. However, to avoid any problems, it is a good idea to not rely on the default constructor in such situations, and instead initialize any problematic fields explicitly. (Note that this is not really a problem for Optional, as Optional<T>().IsPresent will always be false for a default-constructed instance and thus, because of the documented conventions for com.sun.star.beans.Optional_3_01T_01_4, the actual contents of Value should be ignored, anyway; in other cases, like with com.sun.star.beans.Ambiguous_3_01T_01_4, this can be a real issue, however.)
+Another pitfall is that a parametric member of type any of a default-constructed polymorphic struct type instance (think new Optional<Object>().Value in Java 1.5, Optional<Any> o; o.Value in C++) has different values in the Java language binding and the C++ language binding. In Java, it contains a null reference of type XInterface (i.e., the Java value null), whereas in C++ it contains void. Again, to avoid any problems, it is best not to rely on the default constructor in such situations.
+In Java versions prior to 1.5, which do not support generics, a polymorphic struct type template is mapped to a plain Java class in such a way that any parametric members are mapped to class fields of type java.lang.Object. This is generally less favorable than using generics, as it reduces type-safety, but it has the advantage that it is compatible with Java 1.5 (actually, a single Java class file is generated for a given UNO struct type template, and that class file works with both Java 1.5 and older versions). In a pre-1.5 Java, the Optional example will look something like the following:
+
+package com.sun.star.beans;
+
+public class Optional {
+    public boolean IsPresent;
+    public Object Value;
+
+    public Optional() {}
+
+    public Optional(boolean IsPresent, Object Value) {
+        this.IsPresent = IsPresent;
+        this.Value = Value;
+    }
+}
+How java.lang.Object is used to represent values of arbitrary UNO types is detailed as follows:
+
+Values of the UNO types boolean, byte, short, long, hyper, float, double, and char are represented by non-null references to the corresponding Java types java.lang.Boolean, java.lang.Byte, java.lang.Short, java.lang.Integer, java.lang.Long, java.lang.Float, java.lang.Double, and java.lang.Character.
+Values of the UNO types unsigned short, unsigned long, and unsigned hyper are represented by non-null references to the corresponding Java types java.lang.Short, java.lang.Integer, and java.lang.Long. Whether a value of such a Java type corresponds to a signed or unsigned UNO type must be deducible from context.
+Values of the UNO types string, type, any, and the UNO sequence, enum, struct, and interface types (which all map to Java reference types) are represented by their standard Java mappings.
+The UNO type void and UNO exception types cannot be used as type arguments of instantiated polymorphic struct types.
+This is similar to how java.lang.Object is used to represent values of the UNO any type. The difference is that there is nothing like com.sun.star.uno.Any here, which is used to disambiguate those cases where different UNO types map to the same subclass of java.lang.Object. Instead, here it must always be deducible from context exactly which UNO type a given Java reference represents.
+
+The problems and pitfalls mentioned for Java 1.5, regarding parametric members of default-constructed polymorphic struct type instances, apply for older Java versions as well.
+
+Mapping of Exception Types
+A UNO exception type is mapped to a public Java class with the same name. Only non-null references to such a class are valid.
+
+There are two UNO exceptions that are the base for all other exceptions. These are the com.sun.star.uno.Exception and com.sun.star.uno.RuntimeException that are inherited by all other exceptions. The corresponding exceptions in Java inherit from Java exceptions:
+
+module com { module sun { module star { module uno {
+
+exception Exception {
+    string Message;
+    XInterface Context;
+};
+
+exception RuntimeException {
+    string Message;
+    XInterface Context;
+};
+
+}; }; }; };
+The com.sun.star.uno.Exception in Java:
+
+package com.sun.star.uno;
+
+public class Exception extends java.lang.Exception {
+    public Object Context;
+
+    public Exception() {}
+
+    public Exception(String Message) {
+        super(Message);
+    }
+
+    public Exception(String Message, Object Context) {
+        super(Message);
+        this.Context = Context;
+    }
+}
+The com.sun.star.uno.RuntimeException in Java:
+
+package com.sun.star.uno;
+
+public class RuntimeException extends java.lang.RuntimeException {
+    public Object Context;
+
+    public RuntimeException() {}
+
+    public RuntimeException(String Message) {
+        super(Message);
+    }
+
+    public RuntimeException(String Message, Object Context) {
+        super(Message);
+        this.Context = Context;
+    }
+}
+As shown, the Message member has no direct counterpart in the respective Java class. Instead, the constructor argument Message is used to initialize the base class, which is a Java exception. The message is accessible through the inherited getMessage() method. All other members of a UNO exception type are mapped to public fields with the same name and corresponding Java type. A generated Java exception class always has a default constructor that initializes all members with default values, and a constructor which takes values for all members.
+
+If an exception inherits from another exception, the generated class extends the class of the inherited exception.
+
+Mapping of Interface Types
+A UNO interface type is mapped to a public Java interface with the same name. Unlike for Java classes that represent UNO sequence, enum, struct, and exception types, a null reference is actually a legal value for a Java interface that represents a UNO interface type - the Java null reference represents the UNO null reference.
+
+If a UNO interface type inherits one ore more other interface types, the Java interface extends the corresponding Java interfaces.
+
+The UNO interface type com.sun.star.uno.XInterface is special: Only when that type is used as a base type of another interface type is it mapped to the Java type com.sun.star.uno.XInterface. In all other cases (when used as the component type of a sequence type, as a member of a struct or exception type, or as a parameter or return type of an interface method) it is mapped to java.lang.Object. Nevertheless, valid Java values of that type are only the Java null reference and references to those instances of java.lang.Object that implement com.sun.star.uno.XInterface.
+
+A UNO interface attribute of the form
+
+ [attribute] Type Name {
+     get raises (ExceptionG1, ..., ExceptionGM);
+     set raises (ExceptionS1, ..., ExceptionSM);
+ };
+is represented by two Java interface methods
+
+ Type getName() throws ExceptionG1, ..., ExceptionGM;
+ void setName(Type value) throws ExceptionS1, ..., ExceptionSM;
+If the attribute is marked readonly, then there is no set method. Whether or not the attribute is marked bound has no impact on the signatures of the generated Java methods.
+
+A UNO interface method of the form
+
+ Type0 name([in] Type1 arg1, [out] Type2 arg2, [inout] Type3 arg3)
+             raises (Exception1, ..., ExceptionN);
+is represented by a Java interface method
+
+ Type0 name(Type1 arg1, Type2[] arg2, Type3[] arg3)
+             throws Exception1, ..., ExceptionN;
+Whether or not the UNO method is marked oneway has no impact on the signature of the generated Java method. As can be seen, out and inout parameters are handled specially. To help explain this, take the example UNOIDL definitions
+
+struct FooStruct {
+    long nval;
+    string strval;
+};
+
+interface XFoo {
+    string funcOne([in] string value);
+    FooStruct funcTwo([inout] FooStruct value);
+    sequence<byte> funcThree([out] sequence<byte> value);
+};
+The semantics of a UNO method call are such that the values of any in or inout parameters are passed from the caller to the callee, and, if the method is not marked oneway and the execution terminated successfully, the callee passes back to the caller the return value and the values of any out or inout parameters. Thus, the handling of in parameters and the return value maps naturally to the semantics of Java method calls. UNO out and inout parameters, however, are mapped to arrays of the corresponding Java types. Each such array must have at least one element (i.e., its length must be at least one; practically, there is no reason why it should ever be larger). Therefore, the Java interface corresponding to the UNO interface XFoo looks like the following:
+
+public interface XFoo extends com.sun.star.uno.XInterface {
+    String funcOne(String value);
+    FooStruct funcTwo(FooStruct[] value);
+    byte[] funcThree(byte[][] value);
+}
+This is how FooStruct would be mapped to Java:
+
+public class FooStruct {
+    public int nval;
+    public String strval;
+
+    public FooStruct() {
+        strval="";
+    }
+
+    public FooStruct(int nval, String strval) {
+        this.nval = nval;
+        this.strval = strval;
+    }
+}
+When providing a value as an inout parameter, the caller has to write the input value into the element at index zero of the array. When the function returns successfully, the value at index zero reflects the output value, which may be the unmodified input value, a modified copy of the input value, or a completely new value. The object obj implements XFoo:
+
+// calling the interface in Java
+obj.funcOne(null);                          // error, String value is null
+obj.funcOne("");                            // OK
+
+FooStruct[] inoutstruct= new FooStruct[1];
+obj.funcTwo(inoutstruct);                   // error, inoutstruct[0] is null
+
+inoutstruct[0]= new FooStruct();            // now we initialize inoutstruct[0]
+obj.funcTwo(inoutstruct);                   // OK
+When a method receives an argument that is an out parameter, upon successful return, it has to provide a value by storing it at index null of the array.
+
+// method implementations of interface XFoo
+public String funcOne(/*in*/ String value) {
+    assert value != null;                           // otherwise, it is a bug of the caller
+    return null;                                    // error; instead use: return "";
+}
+
+public FooStruct funcTwo(/*inout*/ FooStruct[] value) {
+    assert value != null && value.length >= 1 && value[0] != null;
+    value[0] = null;                                // error; instead use: value[0] = new FooStruct();
+    return null;                                    // error; instead use: return new FooStruct();
+}
+
+public byte[] funcThree(/*out*/ byte[][] value) {
+    assert value != null && value.length >= 1;
+    value[0] = null;                               // error; instead use: value[0] = new byte[0];
+    return null;                                   // error; instead use: return new byte[0];
+}
+Mapping of UNOIDL
+Mapping of UNOIDL Typedefs
+UNOIDL typedefs are not visible in the Java language binding. Each occurrence of a typedef is replaced with the aliased type when mapping from UNOIDL to Java.
+
+Mapping of Individual UNOIDL Constants
+An individual UNOIDL constant
+
+module example {
+    const long USERFLAG = 1;
+};
+is mapped to a public Java interface with the same name:
+
+package example;
+
+public interface USERFLAG {
+    int value = 1;
+}
+Note that the use of individual constants is deprecated.
+
+Mapping of UNOIDL Constant Groups
+A UNOIDL constant group
+
+module example {
+    constants User {
+        const long FLAG1 = 1;
+        const long FLAG2 = 2;
+        const long FLAG3 = 3;
+    };
+};
+is mapped to a public Java interface with the same name:
+
+package example;
+
+public interface User {
+    int FLAG1 = 1;
+    int FLAG2 = 2;
+    int FLAG3 = 3;
+}
+Each constant defined in the group is mapped to a field of the interface with the same name and corresponding type and value.
+
+Mapping of UNOIDL Modules
+A UNOIDL module is mapped to a Java package with the same name. This follows from the fact that each named UNO and UNOIDL entity is mapped to a Java class with the same name. (UNOIDL uses "::" to separate the individual identifiers within a name, as in "com::sun::star::uno", whereas UNO itself and Java both use ".", as in "com.sun.star.uno"; therefore, the name of a UNOIDL entity has to be converted in the obvious way before it can be used as a name in Java.) UNO and UNOIDL entities not enclosed in any module (that is, whose names do not contain any "." or "::", respectively), are mapped to Java classes in an unnamed package.
+
+Mapping of Services
+A new-style services is mapped to a public Java class with the same name. The class has one or more public static methods that correspond to the explicit or implicit constructors of the service.
+
+For a new-style service with a given interface type XIfc, an explicit constructor of the form
+
+name([in] Type1 arg1, [in] Type2 arg2) raises (Exception1, ..., ExceptionN);
+is represented by the Java method
+
+public   static XIfc name(com.sun.star.uno.XComponentContext context,
+Type1 arg1, Type2 arg2)
+    throws Exception1, ..., ExceptionN { ... }
+A UNO rest parameter (any...) is mapped to a Java rest parameter (Object...) in Java 1.5, and to Object[] in older versions of Java.
+
+If a new-style service has an implicit constructor, the corresponding Java method is of the form
+
+public static XIfc create(com.sun.star.uno.XComponentContext context) { ... }
+The semantics of both explicit and implicit service constructors in Java are as follows:
+
+The first argument to a service constructor is always a com.sun.star.uno.XComponentContext, which must be non-null. Any further arguments are used to initialize the created service (see below).
+The service constructor first uses com.sun.star.uno.XComponentContext.getServiceManager to obtain a service manager (a com.sun.star.lang.XMultiComponentFactory) from the given component context.
+The service constructor then uses createInstanceWithArgumentsAndContext to create a service instance, passing it the list of arguments (without the initial XComponentContext). If the service constructor has a single rest parameter, its sequence of any values is used directly, otherwise the given arguments are made into a sequence of any values. In the case of an implicit service constructor, no arguments are passed, and com.sun.star.lang.XMultiComponentFactory.createInstanceWithContext is used instead.
+If any of the above steps fails with an exception that the service constructor may throw (according to its exception specification), the service constructor also fails by throwing that exception. Otherwise, if any of the above steps fails with an exception that the service constructor may not throw, the service constructor instead fails by throwing a com.sun.star.uno.DeploymentException. Finally, if no service instance could be created (because either the given component context has no service manager, or the service manager does not support the requested service), the service constructor fails by throwing a com.sun.star.uno.DeploymentException. The net effect is that a service constructor either returns a non-null instance of the requested service, or throws an exception; a service constructor will never return a null instance.
+Old-style services are not mapped into the Java language binding.
+
+Mapping of Singletons
+A new-style singleton of the form
+
+singleton Name: XIfc;
+is mapped to a public Java class with the same name. The class has a single method
+
+public static XIfc get(com.sun.star.uno.XComponentContext context) { ... }
+The semantics of such a singleton getter method in Java are as follows:
+
+The com.sun.star.uno.XComponentContext argument must be non-null.
+The singleton getter uses com.sun.star.uno.XComponentContext.getValueByName to obtain the singleton instance (within the "/singletons/" name space).
+If no singleton instance could be obtained, the singleton getter fails by throwing a com.sun.star.uno.DeploymentException. The net effect is that a singleton getter either returns the requested non-null singleton instance, or throws an exception; a singleton getter will never return a null instance.
+Old-style singletons are not mapped into the Java language binding.
+
+Inexact approximation of UNO Value Semantics
+Some UNO types that are generally considered to be value types are mapped to reference types in Java. Namely, these are the UNO types string, type, any, and the UNO sequence, enum, struct, and exception types. The problem is that when a value of such a type (a Java object) is used:
+
+As the value stored in an any
+As the value of a sequence component
+As the value of a struct or exception member
+As the value of an interface attribute
+As an argument or return value in an interface method invocation
+As an argument in a service constructor invocation
+As a raised exception
+then Java does not create a clone of that object, but instead shares the object via multiple references to it. If the object is now modified through any one of its references, all other references observe the modification, too. This violates the intended value semantics.
+
+The solution chosen in the Java language binding is to forbid modification of any Java objects that are used to represent UNO values in any of the situations listed above. Note that for Java objects that represent values of the UNO type string, or a UNO enum type, this is trivially warranted, as the corresponding Java types are immutable. This would also hold for the UNO type type, if the Java class com.sun.star.Type were final.
+
+In the sense used here, modifying a Java object A includes modifying any other Java object B that is both (1) reachable from A by following one or more references, and (2) used to represent a UNO value in any of the situations listed above. For a Java object that represents a UNO any value, the restriction to not modify it only applies to a wrapping object of type com.sun.star.uno.Any (which should really be immutable), or to an unwrapped object that represents a UNO value of type string or type, or of a sequence, enum, struct or exception type.
+
+Note that the types java.lang.Boolean, java.lang.Byte, java.lang.Short, java.lang.Integer, java.lang.Long, java.lang.Float, java.lang.Double, and java.lang.Character, used to represent certain UNO values as any values or as parametric members of instantiated polymorphic struct types, are immutable, anyway, and so need not be considered specially here.

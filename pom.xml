@@ -1,0 +1,268 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.loongoffice</groupId>
+    <artifactId>libreoffice-ofd-extension</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>LibreOffice OFD Extension</name>
+    <description>A LibreOffice extension that enables opening OFD (Open Fixed-layout Document) files by converting them to SVG.</description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <libreoffice.version>24.8.4</libreoffice.version>
+        <ofdrw.version>2.3.8</ofdrw.version>
+
+        <!-- Extension build properties - default values -->
+        <extension.name>libreoffice-ofd-extension</extension.name>
+        <extension.displayName>LibreOffice OFD Extension</extension.displayName>
+        <extension.identifier>org.libreoffice.ofd.extension</extension.identifier>
+        <extension.officeName>LibreOffice</extension.officeName>
+    </properties>
+
+    <!-- Profile for building branded extension packages -->
+    <profiles>
+        <!-- Branded version: mvn clean package -DskipTests -P branded -Dbrand=loongoffice -->
+        <profile>
+            <id>branded</id>
+            <properties>
+                <extension.name>${brand}-ofd-extension</extension.name>
+                <extension.displayName>LoongOffice OFD Extension</extension.displayName>
+                <extension.identifier>org.loongoffice.ofd.extension</extension.identifier>
+                <extension.officeName>LoongOffice</extension.officeName>
+            </properties>
+        </profile>
+
+        <!-- Debug version: mvn clean package -DskipTests -P debug -->
+        <profile>
+            <id>debug</id>
+            <properties>
+                <log.level>DEBUG</log.level>
+                <log.output>DEBUG</log.output>
+            </properties>
+        </profile>
+    </profiles>
+
+    <dependencies>
+        <!-- Source: https://mvnrepository.com/artifact/org.libreoffice/libreoffice -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>libreoffice</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- LibreOffice UNO Java bindings - core components -->
+        <!-- Public UNO Java Classes -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>juh</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Java UNO Runtime -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>jurt</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- UNO type system -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>ridl</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- UNO type definitions (interfaces) -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>unoil</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Bootstrap loader for UNO -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>unoloader</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Source: https://mvnrepository.com/artifact/org.libreoffice/officebean -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>officebean</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- OFDRW Converter - supports SVG, Image, HTML, Text, PDF export -->
+        <dependency>
+            <groupId>org.ofdrw</groupId>
+            <artifactId>ofdrw-converter</artifactId>
+            <version>${ofdrw.version}</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Compiler plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
+            </plugin>
+
+            <!-- JAR plugin - for standalone jar with dependencies -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>make-assembly-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                            <archive>
+                                <manifestEntries>
+                                    <RegistrationClassName>org.loongoffice.ofd.reader.OFDImportFilter</RegistrationClassName>
+                                    <UNO-Type-Path>&lt;&gt;</UNO-Type-Path>
+                                </manifestEntries>
+                                <manifest>
+                                    <!-- No main class - this is a UNO extension -->
+                                </manifest>
+                            </archive>
+                            <finalName>${extension.name}</finalName>
+                            <appendAssemblyId>false</appendAssemblyId>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Build OXT extension package -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <id>build-oxt</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- Create temporary OXT directory structure -->
+                                <mkdir dir="${project.build.directory}/oxt-tmp"/>
+                                <mkdir dir="${project.build.directory}/oxt-tmp/META-INF"/>
+                                <mkdir dir="${project.build.directory}/oxt-tmp/description"/>
+
+                                <!-- Copy manifest -->
+                                <copy file="src/main/resources/META-INF/manifest.xml"
+                                      todir="${project.build.directory}/oxt-tmp/META-INF"/>
+
+                                <!-- Copy .components file and replace JAR name -->
+                                <copy file="src/main/oxt/OFDImportFilter.components"
+                                      todir="${project.build.directory}/oxt-tmp">
+                                    <filterset>
+                                        <filter token="extension.jar.name" value="${extension.name}.jar"/>
+                                    </filterset>
+                                </copy>
+
+                                <!-- Copy XCU files -->
+                                <copy file="src/main/resources/Addons.xcu"
+                                      todir="${project.build.directory}/oxt-tmp"/>
+                                <copy file="src/main/resources/Types.xcu"
+                                      todir="${project.build.directory}/oxt-tmp"/>
+                                <copy file="src/main/resources/Filter.xcu"
+                                      todir="${project.build.directory}/oxt-tmp"/>
+
+                                <!-- Copy description.xml to root directory with filtering -->
+                                <copy file="src/main/resources/description/description.xml"
+                                      todir="${project.build.directory}/oxt-tmp">
+                                    <filterset>
+                                        <filter token="extension.identifier" value="${extension.identifier}"/>
+                                        <filter token="extension.displayName" value="${extension.displayName}"/>
+                                    </filterset>
+                                </copy>
+
+                                <!-- Copy description files with filtering (English, Chinese) to description directory -->
+                                <copy todir="${project.build.directory}/oxt-tmp/description">
+                                    <fileset dir="src/main/resources/description">
+                                        <include name="*.txt"/>
+                                    </fileset>
+                                    <filterset>
+                                        <filter token="extension.officeName" value="${extension.officeName}"/>
+                                    </filterset>
+                                </copy>
+
+                                <!-- Copy description files (icons, CHANGELOG) to description directory -->
+                                <copy todir="${project.build.directory}/oxt-tmp/description">
+                                    <fileset dir="src/main/resources/description">
+                                        <include name="*.png"/>
+                                        <include name="*.svg"/>
+                                    </fileset>
+                                    <fileset dir="${project.basedir}">
+                                        <include name="CHANGELOG.md"/>
+                                        <include name="CHANGELOG.zh-CN.md"/>
+                                    </fileset>
+                                </copy>
+
+                                <!-- Copy JAR -->
+                                <copy file="${project.build.directory}/${extension.name}.jar"
+                                      todir="${project.build.directory}/oxt-tmp"/>
+
+                                <!-- Create OXT file (ZIP archive) -->
+                                <zip destfile="${project.build.directory}/${extension.name}.oxt">
+                                    <zipfileset dir="${project.build.directory}/oxt-tmp" includes="**/*"/>
+                                </zip>
+
+                                <echo message="OXT extension created: ${project.build.directory}/${extension.name}.oxt"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
+</project>
