@@ -115,14 +115,14 @@ echo "--------------------------------------------------------------------------
 
 if [ -n "$BRAND" ]; then
     echo "构建品牌化版本: $BRAND"
-    mvn clean package -DskipTests -P branded -Dbrand="$BRAND"
-    OXT_FILE="target/$BRAND-ofd-reader.oxt"
-    EXT_ID="org.loongoffice.ofd.reader.$BRAND"
+    mvn clean package -DskipTests -P loongoffice
+    OXT_FILE="target/loongoffice-ofd-extension.oxt"
+    EXT_ID="org.loongoffice.ofd.extension"
 else
     echo "构建默认版本"
     mvn clean package -DskipTests
-    OXT_FILE="target/ofd-reader.oxt"
-    EXT_ID="org.loongoffice.ofd.reader"
+    OXT_FILE="target/libreoffice-ofd-extension.oxt"
+    EXT_ID="org.libreoffice.ofd.extension"
 fi
 
 echo ""

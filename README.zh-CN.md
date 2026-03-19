@@ -36,13 +36,13 @@ src/main/java/org/loongoffice/ofd/
    - 打开 LibreOffice
    - 菜单：**工具** → **扩展管理**
    - 点击 **添加** 按钮
-   - 选择 `target/ofd-reader.oxt` 文件
+   - 选择 `target/libreoffice-ofd-extension.oxt` 文件
    - 重启 LibreOffice
 
 **方法 2：命令行安装**
 
 ```bash
-unopkg add target/ofd-reader.oxt
+unopkg add target/libreoffice-ofd-extension.oxt
 ```
 
 ### 打开 OFD 文件
@@ -60,7 +60,7 @@ cd /path/to/libreoffice/source
 mkdir -p external/ofdreader
 
 # 复制 OXT 文件
-cp /path/to/ofd-reader.oxt external/ofdreader/
+cp /path/to/libreoffice-ofd-extension.oxt external/ofdreader/
 
 # 创建 Module_ofdreader.mk
 cat > external/ofdreader/Module_ofdreader.mk << 'EOF'
@@ -72,11 +72,11 @@ EOF
 
 # 创建 ExtensionPackage_ofdreader.mk
 cat > external/ofdreader/ExtensionPackage_ofdreader.mk << 'EOF'
-$(eval $(call gb_ExtensionPackage_ExtensionPackage,ofdreader,$(SRCDIR)/external/ofdreader/ofd-reader.oxt))
+$(eval $(call gb_ExtensionPackage_ExtensionPackage,ofdreader,$(SRCDIR)/external/ofdreader/libreoffice-ofd-extension.oxt))
 EOF
 
 # 在 configure.ac 中添加（与其他 libo_CHECK_EXTENSION 并列）
-# libo_CHECK_EXTENSION([OFDReader],[OFDREADER],[ofdreader],[ofdreader],[ofd-reader.oxt])
+# libo_CHECK_EXTENSION([OFDReader],[OFDREADER],[ofdreader],[ofdreader],[libreoffice-ofd-extension.oxt])
 ```
 
 重新构建 LibreOffice 即可。扩展将安装到 `share/extensions/` 目录，用户无法删除。

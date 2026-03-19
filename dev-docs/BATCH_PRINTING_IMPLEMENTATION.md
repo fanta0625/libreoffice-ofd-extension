@@ -30,7 +30,7 @@
 3. **XExtendedFilterDetection 接口**：已实现
 4. **OFD → SVG 转换**：SvgConverter 类
 5. **Filter 注册**：[Filter.xcu](../src/main/resources/Filter.xcu)
-6. **OXT 打包**：target/ofd-reader.oxt (已构建)
+6. **OXT 打包**：target/libreoffice-ofd-extension.oxt (已构建)
 
 ### 🚀 无需修改任何 Java 代码
 
@@ -166,7 +166,7 @@ python3 batch_print_simple.py "/path/to/ofd/files/*.ofd"
 
 1. **安装 OXT 插件**（一次性）
    ```bash
-   unopkg add target/ofd-reader.oxt
+   unopkg add target/libreoffice-ofd-extension.oxt
    ```
 
 2. **使用 Python 脚本批量打印**

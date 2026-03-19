@@ -37,13 +37,13 @@ src/main/java/org/loongoffice/ofd/
    - Open LibreOffice
    - Menu: **Tools** → **Extension Manager**
    - Click **Add** button
-   - Select `target/ofd-reader.oxt` file
+   - Select `target/libreoffice-ofd-extension.oxt` file
    - Restart LibreOffice
 
 **Method 2: Command Line Installation**
 
 ```bash
-/usr/bin/unopkg add target/ofd-reader.oxt
+/usr/bin/unopkg add target/libreoffice-ofd-extension.oxt
 ```
 
 ### Opening OFD Files
@@ -61,7 +61,7 @@ cd /path/to/libreoffice/source
 mkdir -p external/ofdreader
 
 # Copy OXT file
-cp /path/to/ofd-reader.oxt external/ofdreader/
+cp /path/to/libreoffice-ofd-extension.oxt external/ofdreader/
 
 # Create Module_ofdreader.mk
 cat > external/ofdreader/Module_ofdreader.mk << 'EOF'
@@ -73,11 +73,11 @@ EOF
 
 # Create ExtensionPackage_ofdreader.mk
 cat > external/ofdreader/ExtensionPackage_ofdreader.mk << 'EOF'
-$(eval $(call gb_ExtensionPackage_ExtensionPackage,ofdreader,$(SRCDIR)/external/ofdreader/ofd-reader.oxt))
+$(eval $(call gb_ExtensionPackage_ExtensionPackage,ofdreader,$(SRCDIR)/external/ofdreader/libreoffice-ofd-extension.oxt))
 EOF
 
 # Add to configure.ac (alongside other libo_CHECK_EXTENSION lines)
-# libo_CHECK_EXTENSION([OFDReader],[OFDREADER],[ofdreader],[ofdreader],[ofd-reader.oxt])
+# libo_CHECK_EXTENSION([OFDReader],[OFDREADER],[ofdreader],[ofdreader],[libreoffice-ofd-extension.oxt])
 ```
 
 Then rebuild LibreOffice. The extension will be installed in `share/extensions/` and cannot be removed by users.
