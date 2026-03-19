@@ -38,6 +38,18 @@ public class FontMappingConfig {
     private static final java.util.Map<String, String> fallbackMappedFonts = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
+     * 通用基础中文字体路径（最终 fallback）
+     * 当其他特定字体都不存在时，使用这个字体确保中文能显示
+     */
+    private static final String GENERIC_CHINESE_FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc";
+
+    /**
+     * 记录使用了通用 fallback 的字体（用于显示警告）
+     * Key: 字体名称，Value: 最终使用的字体路径
+     */
+    private static final java.util.Map<String, String> genericFallbackFonts = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
      * 初始化字体映射配置
      *
      * 加载顺序：
@@ -111,17 +123,18 @@ public class FontMappingConfig {
     }
 
     /**
-     * 智能添加字体映射
+     * 智能添加字体映射（支持级联 fallback）
      *
      * 逻辑：
      * 1. 先使用 FontLoader 的 getSystemFontPath() 检测字体是否已存在
      * 2. 如果已存在（说明系统中有这个字体，如 Windows 字体），不添加映射
-     * 3. 如果不存在，检查 fallback 字体文件是否存在
-     * 4. 只有 fallback 字体文件存在时才添加映射
+     * 3. 如果不存在，检查首选 fallback 字体文件是否存在
+     * 4. 如果首选 fallback 不存在，尝试使用通用基础中文字体（Noto Sans CJK SC）
+     * 5. 只有找到可用的 fallback 字体时才添加映射
      *
      * @param loader FontLoader 实例
      * @param fontName 字体名称
-     * @param fallbackPath fallback 字体文件路径
+     * @param fallbackPath 首选 fallback 字体文件路径
      */
     private static void addSmartMapping(FontLoader loader, String fontName, String fallbackPath) {
         // 先尝试查找字体是否已经存在于系统中
@@ -133,13 +146,36 @@ public class FontMappingConfig {
             return;
         }
 
-        // 系统中没找到，检查 fallback 字体文件是否存在
+        // 系统中没找到，按优先级尝试 fallback 字体
+        String actualFallbackPath = null;
+        boolean isGenericFallback = false;
+
+        // 优先级1：首选 fallback 字体
         if (Files.exists(Paths.get(fallbackPath))) {
-            loader.addSystemFontMapping(fontName, fallbackPath);
-            fallbackMappedFonts.put(fontName, fallbackPath);  // 记录使用了 fallback 映射
-            logger.info("→ SmartMapping[{}]: Added fallback mapping: {}", fontName, fallbackPath);
+            actualFallbackPath = fallbackPath;
+            logger.debug("首选 fallback 字体存在: {}", fallbackPath);
+        }
+        // 优先级2：通用基础中文字体（确保中文能显示）
+        else if (Files.exists(Paths.get(GENERIC_CHINESE_FONT_PATH))) {
+            actualFallbackPath = GENERIC_CHINESE_FONT_PATH;
+            isGenericFallback = true;
+            logger.debug("首选 fallback 不存在，使用通用中文字体: {}", GENERIC_CHINESE_FONT_PATH);
+        }
+
+        // 找到可用的 fallback 字体，添加映射
+        if (actualFallbackPath != null) {
+            loader.addSystemFontMapping(fontName, actualFallbackPath);
+            fallbackMappedFonts.put(fontName, actualFallbackPath);  // 记录使用了 fallback 映射
+
+            if (isGenericFallback) {
+                genericFallbackFonts.put(fontName, actualFallbackPath);
+                logger.info("→ SmartMapping[{}]: 使用通用中文字体 fallback: {}", fontName, actualFallbackPath);
+            } else {
+                logger.info("→ SmartMapping[{}]: Added fallback mapping: {}", fontName, actualFallbackPath);
+            }
         } else {
-            logger.debug("Fallback font file not found for '{}': {}", fontName, fallbackPath);
+            logger.warn("无法为 '{}' 找到任何可用的 fallback 字体（首选: {}，通用: {}）",
+                    fontName, fallbackPath, GENERIC_CHINESE_FONT_PATH);
         }
     }
 
@@ -151,6 +187,45 @@ public class FontMappingConfig {
      */
     public static boolean isFallbackMappedFont(String fontName) {
         return fallbackMappedFonts.containsKey(fontName);
+    }
+
+    /**
+     * 判断指定字体是否使用了通用基础中文字体 fallback
+     *
+     * @param fontName 字体名称
+     * @return 如果使用了通用 fallback 返回 true，否则返回 false
+     */
+    public static boolean isGenericFallbackFont(String fontName) {
+        return genericFallbackFonts.containsKey(fontName);
+    }
+
+    /**
+     * 确保别名映射的目标字体有 fallback 支持
+     *
+     * 当 alias 指向的目标字体在系统中不存在时，为其添加一个 fallback 映射
+     * 这样即使用户系统没有 AR PL UKai CN、Noto Serif CJK SC 等字体，
+     * 也能 fallback 到 Noto Sans CJK SC 显示中文
+     */
+    private static void ensureAliasTargetFallback(FontLoader loader, String targetFontName) {
+        // 检查目标字体是否已经在系统中有 fallback 映射
+        if (fallbackMappedFonts.containsKey(targetFontName) || genericFallbackFonts.containsKey(targetFontName)) {
+            return; // 已经有 fallback 了，不需要再处理
+        }
+
+        // 检查目标字体是否存在于系统中
+        String existingPath = loader.getSystemFontPath(null, targetFontName);
+        if (existingPath != null) {
+            return; // 系统中存在这个字体，不需要 fallback
+        }
+
+        // 目标字体在系统中不存在，为其添加通用 fallback
+        if (Files.exists(Paths.get(GENERIC_CHINESE_FONT_PATH))) {
+            loader.addSystemFontMapping(targetFontName, GENERIC_CHINESE_FONT_PATH);
+            fallbackMappedFonts.put(targetFontName, GENERIC_CHINESE_FONT_PATH);
+            genericFallbackFonts.put(targetFontName, GENERIC_CHINESE_FONT_PATH);
+            logger.info("→ AliasFallback[{}]: 为别名目标字体添加通用 fallback: {}",
+                    targetFontName, GENERIC_CHINESE_FONT_PATH);
+        }
     }
 
     /**
@@ -293,6 +368,10 @@ public class FontMappingConfig {
                     aliasMappingCount++;
                     logger.debug("Alias mapping: {} -> {}", alias, value);
 
+                    // 确保别名目标字体也有 fallback 支持
+                    // 这样即使用户系统没有 AR PL UKai CN 等字体，也能显示中文
+                    ensureAliasTargetFallback(loader, value);
+
                 } else {
                     logger.warn("Unknown configuration key: {}", key);
                 }
@@ -311,5 +390,6 @@ public class FontMappingConfig {
      */
     static synchronized void reset() {
         fallbackMappedFonts.clear();
+        genericFallbackFonts.clear();
     }
 }
