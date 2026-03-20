@@ -77,6 +77,9 @@ EOF
 
 # 在 configure.ac 中添加（与其他 libo_CHECK_EXTENSION 并列）
 # libo_CHECK_EXTENSION([OFDReader],[OFDREADER],[ofdreader],[ofdreader],[libreoffice-ofd-extension.oxt])
+
+# 在 external/Module_external.mk 中添加（在 gb_Module_add_moduledirs 列表中）
+# $(call gb_Helper_optional,OFDREADER,ofdreader) \
 ```
 
 重新构建 LibreOffice 即可。扩展将安装到 `share/extensions/` 目录，用户无法删除。

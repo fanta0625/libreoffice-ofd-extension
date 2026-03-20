@@ -1,0 +1,3 @@
+Manifest-Version: 1.0
+RegistrationClassName: org.loongoffice.ofd.reader.OFDImportFilter
+UNO-Type-Path: 

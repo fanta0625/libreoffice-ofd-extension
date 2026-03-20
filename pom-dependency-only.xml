@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  此文件仅供 LoongOffice gbuild 集成使用
+  开发者请使用 pom.xml 进行独立构建和发布
+  
+  用途：仅下载项目依赖到 target/lib/ 目录，供 gbuild 编译使用
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.loongoffice</groupId>
+    <artifactId>libreoffice-ofd-extension</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>LibreOffice OFD Extension - Dependency Only</name>
+    <description>Dependency management for LoongOffice gbuild integration</description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <libreoffice.version>24.8.4</libreoffice.version>
+        <ofdrw.version>2.3.8</ofdrw.version>
+
+        <!-- LoongOffice branded version -->
+        <extension.name>loongoffice-ofd-extension</extension.name>
+        <extension.displayName>LoongOffice OFD Extension</extension.displayName>
+        <extension.identifier>org.loongoffice.ofd.extension</extension.identifier>
+        <extension.officeName>LoongOffice</extension.officeName>
+        <extension.updateEnabled>false</extension.updateEnabled>
+    </properties>
+
+    <!-- 添加 JitPack 仓库，用于拉取 fork 的 ofdrw -->
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Source: https://mvnrepository.com/artifact/org.libreoffice/libreoffice -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>libreoffice</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- LibreOffice UNO Java bindings - core components -->
+        <!-- Public UNO Java Classes -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>juh</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Java UNO Runtime -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>jurt</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- UNO type system -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>ridl</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- UNO type definitions (interfaces) -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>unoil</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Bootstrap loader for UNO -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>unoloader</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Source: https://mvnrepository.com/artifact/org.libreoffice/officebean -->
+        <dependency>
+            <groupId>org.libreoffice</groupId>
+            <artifactId>officebean</artifactId>
+            <version>${libreoffice.version}</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- OFDRW Converter - supports SVG, Image, HTML, Text, PDF export -->
+        <!-- 注意：此依赖需要先在本地构建安装 fork 版本（修复了中文编码 bug） -->
+        <dependency>
+            <groupId>org.ofdrw</groupId>
+            <artifactId>ofdrw-converter</artifactId>
+            <version>${ofdrw.version}</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 仅用于下载依赖到 target/lib/ 目录 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <overWriteReleases>false</overWriteReleases>
+                            <overWriteSnapshots>false</overWriteSnapshots>
+                            <overWriteIfNewer>true</overWriteIfNewer>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

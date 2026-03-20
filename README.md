@@ -78,6 +78,9 @@ EOF
 
 # Add to configure.ac (alongside other libo_CHECK_EXTENSION lines)
 # libo_CHECK_EXTENSION([OFDReader],[OFDREADER],[ofdreader],[ofdreader],[libreoffice-ofd-extension.oxt])
+
+# Add to external/Module_external.mk (in the gb_Module_add_moduledirs list)
+# $(call gb_Helper_optional,OFDREADER,ofdreader) \
 ```
 
 Then rebuild LibreOffice. The extension will be installed in `share/extensions/` and cannot be removed by users.
