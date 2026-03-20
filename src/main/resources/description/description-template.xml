@@ -17,8 +17,8 @@
     </icon>
 
     <publisher>
-        <name xlink:href="https://github.com/fanta0625/libreoffice-ofd-extension" lang="en-US">LoongOffice Contributors</name>
-        <name xlink:href="https://github.com/fanta0625/libreoffice-ofd-extension" lang="zh-CN">LoongOffice 贡献者</name>
+        <name xlink:href="@extension.publisherUrl@" lang="en-US">LoongOffice Contributors</name>
+        <name xlink:href="@extension.publisherUrl@" lang="zh-CN">LoongOffice 贡献者</name>
     </publisher>
 
     <dependencies>

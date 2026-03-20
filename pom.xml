@@ -26,6 +26,8 @@
         <extension.updateFile>update-libreoffice.xml</extension.updateFile>
         <!-- 是否启用自动更新：LibreOffice 独立分发需要更新，LoongOffice 集成不需要 -->
         <extension.updateEnabled>true</extension.updateEnabled>
+        <!-- 发布者 URL -->
+        <extension.publisherUrl>https://github.com/fanta0625/libreoffice-ofd-extension</extension.publisherUrl>
     </properties>
 
     <!-- 添加 JitPack 仓库，用于拉取 fork 的 ofdrw -->
@@ -48,6 +50,7 @@
                 <extension.identifier>org.loongoffice.ofd.extension</extension.identifier>
                 <extension.officeName>LoongOffice</extension.officeName>
                 <extension.updateEnabled>false</extension.updateEnabled>
+                <extension.publisherUrl>https://github.com/loongson-community/loongoffice</extension.publisherUrl>
             </properties>
         </profile>
 
@@ -236,6 +239,7 @@
                                     <filterset>
                                         <filter token="extension.identifier" value="${extension.identifier}"/>
                                         <filter token="extension.displayName" value="${extension.displayName}"/>
+                                        <filter token="extension.publisherUrl" value="${extension.publisherUrl}"/>
                                         <filter token="extension.updateInfo" value="${extension.update.info}"/>
                                     </filterset>
                                 </copy>
